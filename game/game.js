@@ -12,7 +12,7 @@ import { RenderPass } from './vendor/three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from './vendor/three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from './vendor/three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from './vendor/three/addons/utils/BufferGeometryUtils.js';
-import { PUBLIC_CALLS, DEEP_CALLS, DAWN_CALLS, AFTER_PHONE, PUBLIC_CASES, CPR, SPECIALTY_WARDS, STUDY_GUIDE } from './public-cases.js';
+import { PUBLIC_CALLS, DEEP_CALLS, DAWN_CALLS, AFTER_PHONE, PUBLIC_CASES, CPR, SPECIALTY_WARDS, STUDY_GUIDE, POCKET_MEDICINE_PAGES } from './public-cases.js';
 import { CHATTER } from './chatter.js';
 import { askAiNurse, verifyAiConnection, AI_DEFAULTS } from './ai-nurse.js';
 
@@ -1451,13 +1451,33 @@ async function boot() {
     // 「從這一床重來」 comes back to this moment
     if (PC.id !== id || !PC.snap) PC.snap = { t: S.t, energy: S.energy, plog: S.plog.length };
     Object.assign(PC, { id, step: 'first', state: late ? c.late : 'start', extra: null, danger: late ? 2 : 0, off: new Set(), log: [], orderFor: null,
-      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null, aiHistory: [], aiBusy: false, dynVitals: null });
+      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null, aiHistory: [], aiBusy: false, dynVitals: null,
+      milestones: { history: false, exam: false, labs: false, diagnosis: false, treatment: false },
+      optsHidden: PC.optsHidden ?? false });
     say(late ? 'alarm' : 'nurse', `${c.nurse}：「${late ? c.introLate : c.intro}」`);
     plog(`到 ${CASES[id].bed} ${c.name}床邊`);
     $('pcNurse').src = IMG(late ? 'nurse_panic' : 'nurse_worried');
     if ($('pcOrderInput')) { $('pcOrderInput').value = ''; $('pcOrderInput').disabled = false; }
     if ($('pcOrderSend')) $('pcOrderSend').disabled = false;
   }
+
+  function updateSandboxMilestones(categories = []) {
+    if (!PC.milestones) PC.milestones = { history: false, exam: false, labs: false, diagnosis: false, treatment: false };
+    for (const cat of categories) {
+      if (PC.milestones[cat] !== undefined) PC.milestones[cat] = true;
+    }
+    const cats = ['history', 'exam', 'labs', 'diagnosis', 'treatment'];
+    let count = 0;
+    for (const cat of cats) {
+      const badge = $(`sbBadge${cat.charAt(0).toUpperCase() + cat.slice(1)}`);
+      if (badge) badge.classList.toggle('done', !!PC.milestones[cat]);
+      if (PC.milestones[cat]) count++;
+    }
+    const percent = Math.round((count / cats.length) * 100);
+    if ($('pcSandboxBar')) $('pcSandboxBar').style.width = `${percent}%`;
+    if ($('pcSandboxPercent')) $('pcSandboxPercent').textContent = `${percent}%`;
+  }
+
   const EXTRA = { sugar: ['血糖', '還沒測'], ekg: ['心電圖', '還沒做'], breath: ['呼吸聲', '還沒聽'], urine: ['尿量', '還沒看'], skin: ['皮膚', '還沒看'],
     head: ['頭部', '還沒看'], fit: ['抽搐', '還沒計時'], temp: ['體溫', '還沒量'], rr: ['呼吸次數', '還沒數'], stool: ['大便', '還沒看'],
     rhythm: ['心律', '還沒貼 AED'] };
@@ -1504,6 +1524,15 @@ async function boot() {
     if (doneBar) doneBar.hidden = true;
     if ($('pcOrderBox')) $('pcOrderBox').hidden = false;
     if ($('pcAsk')) $('pcAsk').hidden = false;
+
+    // 獨立思考模式與選項收合切換狀態
+    if ($('btnToggleOpts')) {
+      $('btnToggleOpts').textContent = PC.optsHidden ? '👁️ 展開參考選項' : '🙈 隱藏選項（獨立思考模式）';
+      $('btnToggleOpts').classList.toggle('active', !!PC.optsHidden);
+    }
+    if ($('pcOptsWrap')) $('pcOptsWrap').classList.toggle('collapsed', !!PC.optsHidden);
+    if ($('pcOptsCollapsedTip')) $('pcOptsCollapsedTip').hidden = !PC.optsHidden;
+    updateSandboxMilestones([]);
 
     const step = c.steps[PC.step];
     $('pcQ').textContent = (step.askBy?.[PC.state] || ([c.warn.state, c.late].includes(PC.state) && step.askWarn) || step.ask).replace('{sugar}', PC.extra ?? '');
@@ -1559,6 +1588,15 @@ async function boot() {
       }
       PC.aiHistory = PC.aiHistory || [];
       PC.aiHistory.push({ role: 'doctor', content: orderText }, { role: 'nurse', content: res.reply });
+
+      // 更新臨床沙盒 5 大面向評估進度
+      const detectedCats = [...(res.milestones || [])];
+      if (/(問|病史|多久|時間|用藥|過敏|慢性病|家族史|發作|吃什麼|主訴|痛多久)/i.test(orderText)) detectedCats.push('history');
+      if (/(聽診|檢查|看瞳孔|瞳孔|囉音|偏癱|理學|呼吸音|心音|水腫|壓痛|反跳痛|查體|神經學|四肢)/i.test(orderText)) detectedCats.push('exam');
+      if (/(量|測|驗|抽血|心電圖|ekg|ecg|胸片|cxr|dxt|血糖|電腦斷層|ct|cta|超音波|abg|乳酸|血培養|troponin|生化|cbc)/i.test(orderText)) detectedCats.push('labs');
+      if (/(診斷|鑑別|懷疑|是|diagnosis|stemi|dka|hhs|pe|sepsis|中風|stroke|lvo|高血鉀|hyperkalemia|心肌梗塞|肺栓塞|肺水腫|過敏性休克|anaphylaxis|gib|消化道出血)/i.test(orderText) && /(診斷|鑑別|懷疑|是|評估)/i.test(orderText)) detectedCats.push('diagnosis');
+      if (/(給|打|開|推|滴|注射|輸液|點滴|生理食鹽水|氧氣|面罩|插管|壓胸|cpr|抗生素|利尿|aspirin|ativan|keppra|calcium|insulin|ri|heparin|furosemide|lasix|epinephrine|octreotide|導管|取栓|evt|洗腎|透析|轉加護|icu)/i.test(orderText)) detectedCats.push('treatment');
+      updateSandboxMilestones(detectedCats);
 
       // 觸發臨床狀態變更與動態結案
       if (res.action === 'draw_lab') {
@@ -1681,6 +1719,17 @@ async function boot() {
     say('you', o.text); plog(`你：${o.text}`, o.grade);
     const began = S.t;
     S.t += o.min || 0;
+
+    // 從選項操作時亦同步點亮臨床里程碑
+    const optText = o.text || '';
+    const optCats = [];
+    if (/(抽血|心電圖|胸片|測血糖|驗|做心電圖|照胸片|ct|lab|ekg|cxr)/i.test(optText) || o.draw) optCats.push('labs');
+    if (/(聽診|查體|看瞳孔|量血壓|量生命徵象|檢查)/i.test(optText)) optCats.push('exam');
+    if (/(問|病史|詢問)/i.test(optText)) optCats.push('history');
+    if (/(給|打|推|滴|注射|輸液|藥|利尿|抗生素|aspirin|cpr|壓胸|氧氣|面罩|iv|im)/i.test(optText) || o.cpr) optCats.push('treatment');
+    if (o.next === 'done' || o.grade === 'best') optCats.push('treatment');
+    if (optCats.length) updateSandboxMilestones(optCats);
+
     // blood taken at the start of the choice: with a choice as long as LAB_WAIT, the report is
     // back, and announced, as the next question is asked
     if (o.draw) { publicDraw(began); labsArrive(); }
@@ -1707,6 +1756,88 @@ async function boot() {
     } else if (o.next) PC.step = o.next;
     renderPublicCase();
   }
+
+  // ---------- Pocket Medicine 9th 原文書頁查閱視窗 (Book Reference Reader) ----------
+  let currentBookPages = [];
+  let currentBookPageIndex = 0;
+
+  function openBookReference() {
+    const caseId = PC.id;
+    const bookData = POCKET_MEDICINE_PAGES[caseId];
+    if (!bookData || !bookData.pages || !bookData.pages.length) {
+      toast('此個案目前尚無對應之 Pocket Medicine 9th 原文書頁圖檔');
+      return;
+    }
+    currentBookPages = bookData.pages;
+    currentBookPageIndex = 0;
+
+    const modal = $('bookModal');
+    if (!modal) return;
+
+    if ($('bookChapterName')) $('bookChapterName').textContent = bookData.chapter || 'Internal Medicine';
+    const c = C();
+    if ($('bookCaseBed')) $('bookCaseBed').textContent = `${CASES[caseId]?.bed || ''} ${c?.name || ''}（${c?.who || ''}）`;
+
+    // 渲染頁碼切換按鈕
+    if ($('bookPageNav')) {
+      $('bookPageNav').innerHTML = currentBookPages.map((p, idx) => `
+        <button type="button" class="book-page-tab ${idx === 0 ? 'active' : ''}" data-idx="${idx}">
+          第 ${p.num} 頁 · ${esc(p.title)}
+        </button>
+      `).join('');
+    }
+
+    renderCurrentBookPage();
+    modal.hidden = false;
+  }
+
+  function renderCurrentBookPage() {
+    if (!currentBookPages.length) return;
+    const p = currentBookPages[currentBookPageIndex];
+    const img = $('bookCurrentImg'), wrapper = $('bookImgWrapper');
+    if (wrapper) wrapper.classList.remove('zoomed');
+    if (img) {
+      img.src = p.file;
+      img.alt = `Pocket Medicine 9th Edition - 第 ${p.num} 頁 (${p.title})`;
+    }
+    if ($('bookPageIndicator')) {
+      $('bookPageIndicator').textContent = `第 ${currentBookPageIndex + 1} / ${currentBookPages.length} 頁 (原著第 ${p.num} 頁)`;
+    }
+    if ($('bookPageNav')) {
+      $('bookPageNav').querySelectorAll('.book-page-tab').forEach((tab, idx) => {
+        tab.classList.toggle('active', idx === currentBookPageIndex);
+      });
+    }
+  }
+
+  function closeBookReference() {
+    const modal = $('bookModal');
+    if (modal) modal.hidden = true;
+    const wrapper = $('bookImgWrapper');
+    if (wrapper) wrapper.classList.remove('zoomed');
+  }
+
+  $('btnBookReference')?.addEventListener('click', openBookReference);
+  $('btnCloseBookModal')?.addEventListener('click', closeBookReference);
+  $('btnBookDone')?.addEventListener('click', closeBookReference);
+  $('bookDim')?.addEventListener('click', closeBookReference);
+  $('btnBookPrev')?.addEventListener('click', () => {
+    if (currentBookPageIndex > 0) { currentBookPageIndex--; renderCurrentBookPage(); }
+  });
+  $('btnBookNext')?.addEventListener('click', () => {
+    if (currentBookPageIndex < currentBookPages.length - 1) { currentBookPageIndex++; renderCurrentBookPage(); }
+  });
+  $('bookPageNav')?.addEventListener('click', e => {
+    const tab = e.target.closest('[data-idx]');
+    if (tab) { currentBookPageIndex = Number(tab.dataset.idx); renderCurrentBookPage(); }
+  });
+  $('bookImgWrapper')?.addEventListener('click', () => {
+    $('bookImgWrapper')?.classList.toggle('zoomed');
+  });
+  $('btnToggleOpts')?.addEventListener('click', () => {
+    PC.optsHidden = !PC.optsHidden;
+    renderPublicCase();
+  });
   // too far gone: the heart stops, unless this is a bed that fails another way (a stroke)
   function publicArrest() {
     const c = C();
@@ -2381,6 +2512,7 @@ async function boot() {
     if (typing(e)) { if (e.key === 'Escape') { e.target.blur(); frame.focus(); } return; }
     const k = e.key.toLowerCase();
     if ($('studyModal') && !$('studyModal').hidden) { if (k === 'escape') { e.preventDefault(); closeStudyGuide(); } return; }
+    if ($('bookModal') && !$('bookModal').hidden) { if (k === 'escape') { e.preventDefault(); closeBookReference(); } return; }
     if (!$('share').hidden) { if (k === 'escape') { e.preventDefault(); $('share').hidden = true; } return; }
     if (S.ended && k === 's' && !e.repeat && !$('handover').hidden) { e.preventDefault(); openShare(); return; }
     if (S.paused) { if (['p', 'escape', 'enter', ' '].includes(k)) { e.preventDefault(); setPaused(false); } return; }

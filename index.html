@@ -65,22 +65,42 @@
           <div class="pc-monitor" id="pcMonitor" aria-label="床邊監視器"></div>
           <div class="pc-log" id="pcLog" aria-live="polite"></div>
           
+          <!-- 沙盒五大面向即時評估進度面板 -->
+          <div class="pc-sandbox-panel" id="pcSandboxPanel" aria-label="臨床沙盒處置實時評估">
+            <div class="pc-sandbox-head">
+              <span class="sandbox-title">🩺 臨床沙盒處置實時評估</span>
+              <span class="sandbox-stats" id="pcSandboxStats">完成進度：<b id="pcSandboxPercent">0%</b></span>
+            </div>
+            <div class="pc-sandbox-progress" aria-hidden="true">
+              <div class="pc-sandbox-bar" id="pcSandboxBar" style="width: 0%"></div>
+            </div>
+            <div class="pc-sandbox-badges">
+              <span class="sb-badge" id="sbBadgeHistory" data-cat="history" title="詢問症狀、發作時間、過往病史與用藥"><i class="sb-icon">💬</i> 問診 (History)</span>
+              <span class="sb-badge" id="sbBadgeExam" data-cat="exam" title="聽診心肺、神經學偏癱、瞳孔與呼吸型態"><i class="sb-icon">🩺</i> 身體檢查 (Physical)</span>
+              <span class="sb-badge" id="sbBadgeLabs" data-cat="labs" title="測血糖、心電圖 EKG、胸片 CXR、抽血與電腦斷層"><i class="sb-icon">🧪</i> 檢驗與影像 (Labs/Dx)</span>
+              <span class="sb-badge" id="sbBadgeDiagnosis" data-cat="diagnosis" title="提出臨床鑑別診斷與主要急症判斷"><i class="sb-icon">🎯</i> 臨床診斷 (Diagnosis)</span>
+              <span class="sb-badge" id="sbBadgeTreatment" data-cat="treatment" title="急救給藥、呼吸道處理、輸液、介入手術或加護處置"><i class="sb-icon">⚡</i> 治療處置 (Treatment)</span>
+            </div>
+          </div>
+
           <!-- AI 床邊自然語言醫囑對話框與快捷列 -->
           <div class="pc-order-box" id="pcOrderBox">
             <form class="pc-order-form" id="pcOrderForm">
               <div class="pc-order-row">
                 <span class="pc-order-label">醫師醫囑</span>
                 <input class="pc-order-input" id="pcOrderInput" type="text" placeholder="自由輸入醫囑、向護理師問診、安排處置… (Enter 送出)" autocomplete="off">
+                <button type="button" class="btn pc-book-btn" id="btnBookReference" title="翻閱當前病人對應之 Pocket Medicine 原文章節圖檔">📖 翻書</button>
                 <button class="btn go pc-order-send" id="pcOrderSend" type="submit">送出醫囑</button>
               </div>
             </form>
             <div class="pc-quick-bar" id="pcQuickBar">
               <span class="quick-lbl">快捷醫囑：</span>
+              <button type="button" class="btn pc-quick-btn" data-order="向病人與家屬詢問發作時間與過往病史">問病史</button>
+              <button type="button" class="btn pc-quick-btn" data-order="聽診心音與兩側呼吸音，檢查四肢水腫">做理學檢查</button>
               <button type="button" class="btn pc-quick-btn" data-order="量生命徵象與血壓心跳">量生命徵象</button>
               <button type="button" class="btn pc-quick-btn" data-order="立刻測指尖 DXT 血糖">測血糖</button>
               <button type="button" class="btn pc-quick-btn" data-order="安排 12 導程心電圖 EKG">做心電圖</button>
               <button type="button" class="btn pc-quick-btn" data-order="安排胸部 X 光 CXR">照胸片</button>
-              <button type="button" class="btn pc-quick-btn" data-order="給予鼻導管氧氣支持 3L/min">給氧氣</button>
               <button type="button" class="btn pc-quick-btn" data-order="抽血送 CBC, DC, 生化電解質">抽血</button>
               <button type="button" class="btn pc-quick-btn finish" data-order="本床急症處置完成，生命徵象已穩定，交代常規觀察並安排轉加護病房/交班觀察">完成處置交班</button>
             </div>
@@ -94,10 +114,16 @@
 
           <div class="pc-ask" id="pcAsk">
             <div class="pc-ask-head">
-              <span class="pc-hint-badge">💡 臨床思考指引 (可點選下列選項，或直接在上方輸入自由醫囑)</span>
+              <span class="pc-hint-badge">💡 臨床思考指引</span>
+              <button type="button" class="btn pc-toggle-opts-btn" id="btnToggleOpts">🙈 隱藏選項（獨立思考模式）</button>
             </div>
-            <p id="pcQ"></p>
-            <div class="pc-opts" id="pcOpts"></div>
+            <div class="pc-opts-wrap" id="pcOptsWrap">
+              <p id="pcQ"></p>
+              <div class="pc-opts" id="pcOpts"></div>
+            </div>
+            <div class="pc-opts-collapsed-tip" id="pcOptsCollapsedTip" hidden>
+              <span>🧠 <b>獨立思考模式進行中</b>：選項已收起。請由上方醫囑框自由輸入問診、身體檢查、檢驗檢查或急救處置。隨時可點擊右上角「展開參考選項」。</span>
+            </div>
           </div>
           <div class="pc-cpr" id="pcCpr" hidden>
             <p>照著紅色圓圈的節拍，按 <span class="key">C</span> 或下面的按鈕壓胸。<br>每分鐘 100–120 下，每下壓深 5–6 公分、再讓胸口完全回彈。<br>先連續壓 30 下，中間不要停；接著護理師和急救小組會輪流接手，一直壓到 AED 分析或心跳回來。</p>
@@ -245,6 +271,39 @@
           <footer class="study-footer">
             <span class="study-hint-text">按 <span class="key">Esc</span> 鍵亦可關閉</span>
             <button type="button" class="btn go" id="btnStudyDone">我已複習完畢，準備接班</button>
+          </footer>
+        </div>
+      </div>
+
+      <!-- Pocket Medicine 原書高清圖檔翻閱彈窗 -->
+      <div class="gmodal book-modal" id="bookModal" hidden>
+        <div class="dim" id="bookDim"></div>
+        <div class="book-card" role="dialog" aria-modal="true" aria-labelledby="bookModalTitle">
+          <header class="book-header">
+            <div class="book-title-wrap">
+              <span class="book-pill">Pocket Medicine 9th Edition · 原著對照指引</span>
+              <h2 id="bookModalTitle">章節：<span id="bookChapterName">Cardiology</span></h2>
+              <p class="book-sub" id="bookCaseSub">對應急症：<b id="bookCaseBed"></b></p>
+            </div>
+            <button type="button" class="btn-book-close" id="btnCloseBookModal" aria-label="關閉翻書視窗">✕</button>
+          </header>
+          <nav class="book-page-nav" id="bookPageNav"></nav>
+          <div class="book-viewer" id="bookViewer">
+            <div class="book-page-loading" id="bookLoading" hidden>頁面載入中…</div>
+            <div class="book-img-wrapper" id="bookImgWrapper">
+              <img id="bookCurrentImg" src="" alt="Pocket Medicine 原文書頁" class="book-page-img">
+            </div>
+          </div>
+          <footer class="book-footer">
+            <div class="book-footer-info">
+              <span id="bookPageIndicator">第 1 / 2 頁</span>
+              <small class="book-zoom-tip">💡 點擊圖片可放大閱讀，亦可按 <span class="key">Esc</span> 鍵返回床邊</small>
+            </div>
+            <div class="book-footer-actions">
+              <button type="button" class="btn" id="btnBookPrev">◀ 上一頁</button>
+              <button type="button" class="btn" id="btnBookNext">下一頁 ▶</button>
+              <button type="button" class="btn go" id="btnBookDone">返回床邊處置</button>
+            </div>
           </footer>
         </div>
       </div>

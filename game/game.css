@@ -541,6 +541,89 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 .ai-verify-panel.err b { color: #ff6b72; }
 .ai-verify-panel.loading { background: rgba(69, 227, 204, .08); border-color: rgba(69, 227, 204, .25); color: #c4fbf2; }
 
+/* ---------- 床邊沙盒 5 大面向即時評估進度面板 ---------- */
+.pc-sandbox-panel {
+  display: flex;
+  flex-direction: column;
+  gap: .4em;
+  padding: .5em .75em;
+  background: rgba(8, 17, 26, .92);
+  border: 1px solid rgba(69, 227, 204, .25);
+  border-radius: .6em;
+  flex: none;
+}
+.pc-sandbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .82em;
+}
+.sandbox-title {
+  font-weight: 700;
+  color: #c9e6f8;
+  display: flex;
+  align-items: center;
+  gap: .3em;
+}
+.sandbox-stats {
+  font-size: .85em;
+  color: var(--g-dim);
+}
+.sandbox-stats b {
+  color: var(--g-teal);
+  font-family: var(--font-num, monospace);
+  font-size: 1.1em;
+}
+.pc-sandbox-progress {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, .08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pc-sandbox-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #45e3cc, #5bff8f);
+  box-shadow: 0 0 8px rgba(69, 227, 204, .6);
+  border-radius: 3px;
+  transition: width .35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pc-sandbox-badges {
+  display: flex;
+  gap: .35em;
+  flex-wrap: wrap;
+}
+.sb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  font-size: .76em;
+  padding: .2em .55em;
+  border-radius: .4em;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .1);
+  color: #8fa5b8;
+  transition: all .25s ease;
+  user-select: none;
+}
+.sb-badge .sb-icon {
+  font-style: normal;
+  font-size: .95em;
+}
+.sb-badge.done {
+  background: rgba(91, 255, 143, .14);
+  border-color: rgba(91, 255, 143, .6);
+  color: #7aff9e;
+  font-weight: 700;
+  box-shadow: 0 0 .6em rgba(91, 255, 143, .2);
+  transform: translateY(-1px);
+}
+.sb-badge.done::after {
+  content: ' ✓';
+  color: #5bff8f;
+  font-weight: 900;
+}
+
 /* ---------- 床邊 AI 自然語言對話與醫囑快捷列 ---------- */
 .pc-ai-badge { display: inline-flex; align-items: center; gap: .35em; font-size: .78em; font-weight: 700; padding: .15em .55em; border-radius: 1em; margin-left: .6em; vertical-align: middle; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .15); color: #c0d2e2; }
 .pc-ai-badge.live { background: rgba(91, 255, 143, .15); border-color: rgba(91, 255, 143, .45); color: #83ffaa; }
@@ -552,6 +635,8 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 .pc-order-label { flex: none; font-size: .82em; font-weight: 700; padding: .35em .65em; border-radius: .4em; background: rgba(69, 227, 204, .18); color: var(--g-teal); border: 1px solid rgba(69, 227, 204, .35); }
 .pc-order-input { flex: 1; min-width: 0; padding: .5em .75em; font-size: .95em; color: #fff; background: rgba(2, 6, 10, .85); border: 1px solid #233446; border-radius: .45em; outline: none; transition: border-color .2s, box-shadow .2s; }
 .pc-order-input:focus { border-color: var(--g-teal); box-shadow: 0 0 .6em rgba(69, 227, 204, .35); }
+.pc-book-btn { flex: none; display: inline-flex; align-items: center; gap: .3em; padding: .45em .75em; font-size: .88em; font-weight: 700; background: linear-gradient(135deg, rgba(255, 190, 91, .18), rgba(214, 137, 16, .25)); border: 1.5px solid #ffbe5b; color: #ffe0a3; border-radius: .45em; cursor: pointer; transition: all .15s; }
+.pc-book-btn:hover { background: linear-gradient(135deg, rgba(255, 190, 91, .32), rgba(214, 137, 16, .45)); color: #fff; transform: translateY(-1px); box-shadow: 0 0 .8em rgba(255, 190, 91, .4); }
 .pc-order-send { flex: none; padding: .5em 1em; font-size: .9em; font-weight: 700; }
 .pc-quick-bar { display: flex; gap: .35em; align-items: center; flex-wrap: wrap; font-size: .82em; }
 .quick-lbl { color: var(--g-dim); font-size: .85em; }
@@ -571,8 +656,25 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 .pc-done-btn { align-self: flex-start; padding: .55em 1.3em; font-size: .98em; font-weight: 700; background: #5bff8f; color: #021a11; border: none; border-radius: .45em; cursor: pointer; transition: all .15s; }
 .pc-done-btn:hover { background: #85ffab; transform: translateY(-1px); box-shadow: 0 0 1em rgba(91, 255, 143, .5); }
 
-.pc-ask-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .4em; }
+.pc-ask-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .4em; gap: .5em; }
 .pc-hint-badge { font-size: .78em; color: var(--g-teal); background: rgba(69, 227, 204, .08); padding: .2em .6em; border-radius: .4em; border: 1px solid rgba(69, 227, 204, .2); }
+.pc-toggle-opts-btn { font-size: .78em; padding: .25em .65em; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); color: #d0e0ed; border-radius: .4em; cursor: pointer; transition: all .15s; }
+.pc-toggle-opts-btn:hover { background: rgba(255, 255, 255, .14); border-color: #6fb5ee; color: #fff; }
+.pc-toggle-opts-btn.active { background: rgba(69, 227, 204, .14); border-color: var(--g-teal); color: #45e3cc; font-weight: 700; }
+
+.pc-opts-wrap { transition: opacity .2s ease, max-height .25s ease; }
+.pc-opts-wrap.collapsed { display: none; }
+.pc-opts-collapsed-tip {
+  padding: .65em .85em;
+  border-radius: .5em;
+  background: rgba(30, 52, 74, .35);
+  border: 1px dashed rgba(69, 227, 204, .35);
+  color: #b9d8ee;
+  font-size: .83em;
+  line-height: 1.45;
+  animation: fadeIn .2s ease;
+}
+.pc-opts-collapsed-tip b { color: #5effdf; }
 
 /* ---------- 值班病房分支選擇 (Ward Branching) ---------- */
 .ward-branch-fieldset { margin: 1em 0; padding: .9em 1.1em; border: 1.5px solid #1f374b; border-radius: .65em; background: rgba(13, 24, 34, .7); }
@@ -867,3 +969,209 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
   background: rgba(15, 25, 36, .75);
   box-shadow: none;
 }
+
+/* ---------- Pocket Medicine 原書高清圖檔翻閱彈窗 (Book Reference Modal) ---------- */
+.book-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.2rem !important;
+  box-sizing: border-box !important;
+}
+.book-modal[hidden] {
+  display: none !important;
+}
+.book-modal .dim {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(3, 7, 12, .88) !important;
+  backdrop-filter: blur(8px) !important;
+  z-index: 1 !important;
+}
+.book-card {
+  position: relative !important;
+  z-index: 2 !important;
+  width: min(980px, 95vw);
+  max-height: 92vh;
+  background: #0d1620;
+  border: 1.5px solid #ffbe5b;
+  border-radius: .9em;
+  box-shadow: 0 1.5em 3.5em rgba(0, 0, 0, .85), 0 0 2em rgba(255, 190, 91, .25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popIn .2s ease-out;
+}
+.book-header {
+  padding: .9em 1.2em;
+  border-bottom: 1px solid rgba(255, 190, 91, .25);
+  background: linear-gradient(135deg, rgba(255, 190, 91, .12), rgba(20, 32, 45, .8));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1em;
+  flex: none;
+}
+.book-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: .2em;
+}
+.book-pill {
+  font-size: .74em;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #ffbe5b;
+  background: rgba(255, 190, 91, .18);
+  border: 1px solid rgba(255, 190, 91, .4);
+  padding: .15em .55em;
+  border-radius: 1em;
+  align-self: flex-start;
+  text-transform: uppercase;
+}
+.book-header h2 {
+  margin: 0;
+  font-size: 1.15em;
+  color: #fff;
+}
+.book-header h2 span {
+  color: #ffe4b5;
+}
+.book-sub {
+  margin: 0;
+  font-size: .83em;
+  color: var(--g-dim);
+}
+.book-sub b {
+  color: #ff8a93;
+}
+.btn-book-close {
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: #d6e2ec;
+  font-size: 1.1em;
+  width: 2em;
+  height: 2em;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-book-close:hover {
+  background: rgba(255, 79, 85, .25);
+  border-color: #ff4f55;
+  color: #fff;
+}
+
+.book-page-nav {
+  display: flex;
+  gap: .5em;
+  padding: .5em 1.2em;
+  background: rgba(8, 14, 21, .9);
+  border-bottom: 1px solid #1c2c3d;
+  overflow-x: auto;
+  flex: none;
+}
+.book-page-tab {
+  padding: .4em .85em;
+  font-size: .82em;
+  font-weight: 700;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid #233648;
+  border-radius: .45em;
+  color: #9cb4c7;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.book-page-tab:hover {
+  background: rgba(255, 190, 91, .1);
+  border-color: rgba(255, 190, 91, .4);
+  color: #ffdfa0;
+}
+.book-page-tab.active {
+  background: rgba(255, 190, 91, .2);
+  border-color: #ffbe5b;
+  color: #fff;
+  box-shadow: 0 0 .7em rgba(255, 190, 91, .25);
+}
+
+.book-viewer {
+  flex: 1;
+  min-height: 260px;
+  overflow: auto;
+  padding: 1.2em;
+  background: #070c12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+}
+.book-page-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffbe5b;
+  font-size: .95em;
+  font-weight: 700;
+}
+.book-img-wrapper {
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  cursor: zoom-in;
+  transition: transform .2s ease;
+}
+.book-img-wrapper.zoomed {
+  cursor: zoom-out;
+  transform: scale(1.4);
+  transform-origin: top center;
+  margin-bottom: 25%;
+}
+.book-page-img {
+  max-width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+  border-radius: .4em;
+  box-shadow: 0 .8em 2.5em rgba(0, 0, 0, .8), 0 0 1px rgba(255, 255, 255, .2);
+  background: #fff;
+  transition: all .2s;
+}
+
+.book-footer {
+  padding: .75em 1.2em;
+  border-top: 1px solid #1c2c3d;
+  background: #0a1118;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  flex: none;
+}
+.book-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+#bookPageIndicator {
+  font-size: .88em;
+  font-weight: 700;
+  color: #ffbe5b;
+  font-family: var(--font-num, monospace);
+}
+.book-zoom-tip {
+  color: var(--g-dim);
+  font-size: .78em;
+}
+.book-footer-actions {
+  display: flex;
+  gap: .5em;
+}
+

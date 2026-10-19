@@ -1480,7 +1480,86 @@ export const STUDY_GUIDE = [
 ];
 
 
+// Pocket Medicine 9th 原文書本章節頁面圖檔索引 (供床邊「翻書」即時查證)
+export const POCKET_MEDICINE_PAGES = {
+  pacs: {
+    chapter: 'CARDIOLOGY: ST-Elevation Myocardial Infarction (STEMI)',
+    pages: [
+      { num: 23, file: 'assets/pocket-medicine/pacs_page_23.png', title: '心肌梗塞生物標記與診斷條件' },
+      { num: 24, file: 'assets/pocket-medicine/pacs_page_24.png', title: '早期冠脈再灌流與治療指引' }
+    ]
+  },
+  padhf: {
+    chapter: 'CARDIOLOGY: Acute Decompensated Heart Failure & Pulmonary Edema',
+    pages: [
+      { num: 35, file: 'assets/pocket-medicine/padhf_page_35.png', title: '心衰竭臨床症狀與理學檢查' },
+      { num: 36, file: 'assets/pocket-medicine/padhf_page_36.png', title: '診斷評估: BNP, CXR 與肺超音波' },
+      { num: 37, file: 'assets/pocket-medicine/padhf_page_37.png', title: '急性肺水腫治療: BiPAP、利尿劑與血管擴張' }
+    ]
+  },
+  ppe: {
+    chapter: 'PULMONARY: Acute Pulmonary Embolism & DVT',
+    pages: [
+      { num: 99, file: 'assets/pocket-medicine/ppe_page_99.png', title: '深層靜脈血栓與肺栓塞徵象及風險' },
+      { num: 100, file: 'assets/pocket-medicine/ppe_page_100.png', title: 'Wells 評分、抗凝治療與血栓溶解' }
+    ]
+  },
+  psepsis: {
+    chapter: 'CRITICAL CARE: Sepsis & Septic Shock',
+    pages: [
+      { num: 114, file: 'assets/pocket-medicine/psepsis_page_114.png', title: '敗血症定義、SOFA 評分與休克復甦' },
+      { num: 115, file: 'assets/pocket-medicine/psepsis_page_115.png', title: '黃金一小時集束處置: 培養、抗生素與升壓劑' }
+    ]
+  },
+  pgib: {
+    chapter: 'GASTROENTEROLOGY: Gastrointestinal Bleeding & Varices',
+    pages: [
+      { num: 120, file: 'assets/pocket-medicine/pgib_page_120.png', title: '上消化道大出血臨床表現與復甦' },
+      { num: 121, file: 'assets/pocket-medicine/pgib_page_121.png', title: '內視鏡結紮、降低門脈壓藥物與處置' }
+    ]
+  },
+  phyperk: {
+    chapter: 'NEPHROLOGY: Hyperkalemia & Electrolyte Emergencies',
+    pages: [
+      { num: 175, file: 'assets/pocket-medicine/phyperk_page_175.png', title: '高血鉀病因與細胞內外轉移機制' },
+      { num: 176, file: 'assets/pocket-medicine/phyperk_page_176.png', title: '穩定細胞膜(鈣劑)、促鉀內移與急診透析' }
+    ]
+  },
+  pneutro: {
+    chapter: 'HEMATOLOGY-ONCOLOGY: Febrile Neutropenia (FN)',
+    pages: [
+      { num: 245, file: 'assets/pocket-medicine/pneutro_page_245.png', title: 'MASCC 風險分層與一小時內抗生素準則' },
+      { num: 246, file: 'assets/pocket-medicine/pneutro_page_246.png', title: '抗綠膿桿菌廣效處方與管路感染處置' }
+    ]
+  },
+  phypo: {
+    chapter: 'ENDOCRINOLOGY: Diabetic Ketoacidosis (DKA) & HHS',
+    pages: [
+      { num: 304, file: 'assets/pocket-medicine/phypo_page_304.png', title: 'DKA 病理生理學、診斷指標與陰離子隙' },
+      { num: 305, file: 'assets/pocket-medicine/phypo_page_305.png', title: '大劑量輸液復甦(0.9% NS)與血鉀核查' },
+      { num: 306, file: 'assets/pocket-medicine/phypo_page_306.png', title: '靜脈胰島素方案、轉D5換水與腦水腫預防' }
+    ]
+  },
+  pstroke: {
+    chapter: 'NEUROLOGY: Status Epilepticus & Acute Stroke (LVO)',
+    pages: [
+      { num: 347, file: 'assets/pocket-medicine/pstroke_page_347.png', title: '癲癇重積搶救流程 (Lorazepam -> Keppra)' },
+      { num: 348, file: 'assets/pocket-medicine/pstroke_page_348.png', title: '難治性癲癇重積與呼吸道保護' },
+      { num: 350, file: 'assets/pocket-medicine/pstroke_page_350.png', title: '急性缺血性中風: NCCT、CTA 與大血管閉塞' },
+      { num: 351, file: 'assets/pocket-medicine/pstroke_page_351.png', title: '動脈機械取栓 (EVT) 適應症與血壓控制' }
+    ]
+  },
+  panaph: {
+    chapter: 'ALLERGY & RHEUMATOLOGY: Severe Anaphylaxis & Shock',
+    pages: [
+      { num: 85, file: 'assets/pocket-medicine/panaph_page_85.png', title: '過敏性休克致病機轉與臨床診斷標準' },
+      { num: 86, file: 'assets/pocket-medicine/panaph_page_86.png', title: '第一首選肌肉注射 Epinephrine、輸液與雙相反應' }
+    ]
+  }
+};
+
 // CPR: chest compressions to a beat. 30 compressions at 100–120 a minute, judged on exactly the
 // range the screen gives; the rate is the median of the presses after the first two, so a
 // hesitant start or one stray press is forgiven.
 export const CPR = { presses: 30, slowest: 100, fastest: 120, maxGap: 2.5 };
+
