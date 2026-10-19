@@ -217,6 +217,38 @@
         </div>
       </div>
 
+      <!-- Pocket Medicine 臨床病例庫與學習重點瀏覽彈窗 -->
+      <div class="gmodal study-modal" id="studyModal" hidden>
+        <div class="dim" id="studyDim"></div>
+        <div class="study-card" role="dialog" aria-modal="true" aria-labelledby="studyTitle">
+          <header class="study-header">
+            <div class="study-title-wrap">
+              <span class="study-badge">Pocket Medicine 9th Edition 臨床藍本</span>
+              <h2 id="studyTitle">內科值班急症臨床病例庫與學習重點</h2>
+              <p class="study-sub">摘錄麻省總醫院 (MGH) 內科值班指引，全覽 10 大專科急症個案背景、鑑別要點、必做處置與致命陷阱。</p>
+            </div>
+            <button type="button" class="btn-study-close" id="btnCloseStudyGuide" aria-label="關閉">✕</button>
+          </header>
+          <nav class="study-tabs" id="studyTabs">
+            <button type="button" class="study-tab active" data-spec="all">全部急症 (10)</button>
+            <button type="button" class="study-tab" data-spec="cv">心臟內科 (2)</button>
+            <button type="button" class="study-tab" data-spec="pulm">胸腔重症 (2)</button>
+            <button type="button" class="study-tab" data-spec="gi">胃腸肝膽 (1)</button>
+            <button type="button" class="study-tab" data-spec="nephro">腎臟內科 (1)</button>
+            <button type="button" class="study-tab" data-spec="hem_onc">血液腫瘤 (1)</button>
+            <button type="button" class="study-tab" data-spec="inf">感染科 (2)</button>
+            <button type="button" class="study-tab" data-spec="meta">新陳代謝 (1)</button>
+            <button type="button" class="study-tab" data-spec="neuro">神經內科 (1)</button>
+            <button type="button" class="study-tab" data-spec="rheum">風濕免疫 (1)</button>
+          </nav>
+          <div class="study-body" id="studyBody"></div>
+          <footer class="study-footer">
+            <span class="study-hint-text">按 <span class="key">Esc</span> 鍵亦可關閉</span>
+            <button type="button" class="btn go" id="btnStudyDone">我已複習完畢，準備接班</button>
+          </footer>
+        </div>
+      </div>
+
       <div class="start" id="start" hidden>
         <div class="card">
           <div class="lhs">
@@ -231,6 +263,10 @@
               <dt><span class="key">M</span></dt><dd>全景：看整層樓，再按一次回來</dd>
               <dt><span class="key">P</span></dt><dd>暫停</dd>
             </dl>
+            <div class="start-study-prompt">
+              <button type="button" class="btn-study-guide" id="btnOpenStudyGuide">📖 Pocket Medicine 臨床病例庫與學習重點</button>
+              <small class="study-guide-subtext">值班前預習：全覽 10 大專科急症個案摘要、處置關鍵與致命陷阱</small>
+            </div>
           </div>
           <div class="rhs">
             <div class="setup-group">
@@ -288,6 +324,41 @@
               </label>
               <div class="ai-verify-panel" id="gAiStatus" hidden></div>
               <p class="sf-hint" id="gHint" hidden></p>
+            </div>
+            <fieldset class="ward-branch-fieldset" id="gWardBranch">
+              <legend>今天你要值哪一段病房呢？</legend>
+              <div class="ward-branch-list">
+                <label class="ward-opt-card">
+                  <input type="radio" name="wardBranch" value="mixed" checked>
+                  <div class="ward-opt-content">
+                    <b>綜合病房（值大段：病人龍蛇混雜）</b>
+                    <small>全院各專科病人混合交叉掩護，各科急症隨機出現</small>
+                  </div>
+                </label>
+                <label class="ward-opt-card">
+                  <input type="radio" name="wardBranch" value="specialty">
+                  <div class="ward-opt-content">
+                    <b>Pocket Medicine 專科病房</b>
+                    <small>依手冊章節鎖定特定專科，專攻該科別典型急症個案</small>
+                  </div>
+                </label>
+              </div>
+            </fieldset>
+            <div class="sf-row" id="gSpecialtyRow" hidden>
+              <label class="sf full">
+                <span>選擇專科交班病房：</span>
+                <select id="gSpecialtySelect">
+                  <option value="cv" selected>心臟內科病房 (Cardiology) · 冠心症 STEMI、心衰竭肺水腫</option>
+                  <option value="pulm">胸腔暨重症加護病房 (Pulmonary & Critical Care) · 肺栓塞、ARDS</option>
+                  <option value="gi">胃腸肝膽科病房 (Gastroenterology) · 食道靜脈曲張大出血、肝硬化</option>
+                  <option value="nephro">腎臟內科病房 (Nephrology) · 致命高血鉀 K 7.2、尿毒急症</option>
+                  <option value="inf">感染科病房 (Infectious Diseases) · 敗血性休克、蜂窩性組織炎</option>
+                  <option value="hem_onc">血液腫瘤科病房 (Hematology & Oncology) · 嗜中性低下發燒 (FN)</option>
+                  <option value="meta">內分泌暨新陳代謝科病房 (Endocrinology) · 致死性低血糖</option>
+                  <option value="neuro">神經內科病房 (Neurology) · 急性缺血性腦中風 (AIS)</option>
+                  <option value="rheum">風濕免疫科病房 (Rheumatology) · 嚴重過敏性休克 (Anaphylaxis)</option>
+                </select>
+              </label>
             </div>
             <fieldset class="shift" id="gShift">
               <legend>今晚的班：</legend>

@@ -221,9 +221,13 @@ export async function askAiNurse({
 1. 低血糖 (phypo): 測指尖血糖 -> 意識不清立即 IV push D50W (高濃度葡萄糖) -> 甦醒後進食、停用降血糖藥。
 2. 急性腦中風 (pstroke): FAST評估、確認最後正常時間 (LKW) -> 測血糖 -> 急照無顯影腦部電腦斷層 (Non-contrast Head CT) -> 評估血栓溶解劑 (rtPA) -> 轉 ICU。切勿盲目積極降血壓。
 3. 急性心肌梗塞 (pacs): 10分鐘內做 12 導程 EKG + 給氧 -> 嚼服 Aspirin (160-325mg) + 舌下含 NTG (血壓許可) -> 急驗 Troponin -> 啟動心導管室 (Code STEMI) 進行冠脈介入治療 -> 轉 CCU。
-4. 致命性高血鉀 (phyperk): 心電圖見寬 QRS/高尖 T 波 -> 立即 IV Calcium gluconate (10mL) 穩定細胞膜 -> IV RI 10U + D50W 2支 (促鉀入細胞) -> 吸入 Albuterol -> 聯繫腎臟科安排急診血液透析 (HD)。
-5. 消化道大出血 (pgib): 2條大口徑 IV (16-18G) 快速輸液復甦 -> 送檢備紅血球 (PRBC) -> 靜脈高劑量 PPI -> 若為肝硬化靜脈曲張給 Octreotide 與預防性 Ceftriaxone -> 安排急診胃鏡 (EGD) 止血。
-6. 敗血性休克 (psepsis): Sepsis 1-hour bundle: 給抗生素前抽兩套血培養 (Blood CS x 2) -> 1小時內給廣效抗生素 (Pip-Tazo/Cefepime) -> 30 mL/kg 快速輸液 -> MAP < 65 立即上 Norepinephrine 升壓劑 -> 抽 Lactate 追蹤。
+4. 心衰竭肺水腫 (padhf): 端坐呼吸 + 咳粉紅泡沫痰 -> 坐起並立即非侵襲性陽壓呼吸 (BiPAP/CPAP) -> 靜脈利尿劑 (IV Furosemide) + 血管擴張劑 (IV NTG，血壓許可下) 降後負荷 -> 轉 CCU。嚴禁平躺或給予 Beta-blocker。
+5. 致命性高血鉀 (phyperk): 心電圖見寬 QRS/高尖 T 波 -> 立即 IV Calcium gluconate (10mL) 穩定細胞膜 -> IV RI 10U + D50W 2支 (促鉀入細胞) -> 吸入 Albuterol -> 聯繫腎臟科安排急診血液透析 (HD)。
+6. 消化道大出血 (pgib): 2條大口徑 IV (16-18G) 快速輸液復甦 -> 送檢備紅血球 (PRBC) -> 限制性輸血維持 Hb 7-8 -> 靜脈高劑量 PPI -> 若為肝硬化靜脈曲張給 Octreotide 與預防性 Ceftriaxone -> 安排急診胃鏡 (EGD) 止血。
+7. 急性肺栓塞 (ppe): 突發急喘與胸痛低氧 -> 高流量氧氣面罩 -> 立即靜脈抗凝血劑 (IV Heparin 負荷劑量) -> 大塊休克評估血栓溶解 (tPA 100mg) -> 轉加護病房 (ICU)。切忌大量快速輸液加重右心衰竭。
+8. 敗血性休克 (psepsis): Sepsis 1-hour bundle: 給抗生素前抽兩套血培養 (Blood CS x 2) -> 1小時內給廣效抗生素 (Pip-Tazo/Cefepime) -> 30 mL/kg 快速輸液 -> MAP < 65 立即上 Norepinephrine 升壓劑 -> 抽 Lactate 追蹤。
+9. 嗜中性低下發燒 (pneutro): 化療後發燒 (ANC < 500) -> 抽兩套血液培養 (Port-A + 周邊) -> 1小時內給予抗綠膿桿菌廣效抗生素 (Cefepime 2g IV) -> 等張輸液。嚴禁肛溫、肛門指診與塞劑！
+10. 過敏性休克 (panaph): 抗生素等引發喉水腫喘鳴、全身紅疹、休克 -> 立即停藥 -> 第一首選救命唯一是肌肉注射 IM Epinephrine (0.3-0.5mg 於大腿前外側) -> 大量輸液 1-2L -> 二線抗組織胺與類固醇輔助預防雙相反應 -> 轉 ICU 觀察。切不可只給抗組織胺延誤 Epinephrine！
 
 【臨床決策與自由醫囑結案規則】：
 1. 語氣口吻：以「${nurseName}：「開頭。使用台灣醫院醫護用語（如：on IV、push D50、做 EKG、抽 ABG、叫心導管室、轉加護病房等）。本文約 40～90 字。
@@ -452,47 +456,7 @@ function localClinicalRuleFallback(t, c, v) {
   const nurse = c.nurse || '護理師';
   const cid = (c.id || '').replace(/^p/, '');
 
-  if (/(量|量測|測|看|確認).{0,6}(生命徵象|vital|血壓|心跳|血氧|bp|hr|spo2)/i.test(t)) {
-    const bpStr = v.bp ? `${v.bp[0]}/${v.bp[1]} mmHg` : '量不到';
-    return {
-      reply: `${nurse}：「量好了！目前 HR ${v.hr || '--'} 次/分、BP ${bpStr}、SpO₂ ${v.spo2 || '--'}%，意識${v.mind || '未明'}。」`,
-      action: 'vital'
-    };
-  }
-
-  if (/(抽血|cbc|dc|生化|電解質|bun|cr|k|na|sugar|血糖|lab|blood\s*gas|abg)/i.test(t)) {
-    if (/(量|測|dxt|驗|驗一下|立即測).{0,6}(血糖|sugar|dxt)/i.test(t) && cid === 'hypo') {
-      return {
-        reply: `${nurse}：「立刻測指尖血糖！嗶——指尖 DXT 只有 32 mg/dL！病人嚴重低血糖，需要立即補充糖分！」`,
-        action: 'sugar_check',
-        vitalsUpdate: { extra: 32 }
-      };
-    }
-    return {
-      reply: `${nurse}：「好的，已經抽好血並加急送往檢驗科，報告大約 30 分鐘後出來，出來會即時通知醫師！」`,
-      action: 'draw_lab'
-    };
-  }
-
-  if (/(心電圖|ekg|ecg|12\s*lead)/i.test(t)) {
-    let ekgFinding = '12 導程心電圖已完成！圖形已輸出貼在床尾病歷夾。';
-    let extraVal = undefined;
-    if (cid === 'acs') {
-      ekgFinding = '12 導程心電圖已完成：V1–V4 導程 ST 段明顯抬高 (STEMI)！怡君：「前壁 ST 抬得好高，是急性心肌梗塞！」';
-      extraVal = 'V1–V4 ST 抬高 (STEMI)';
-    } else if (cid === 'hyperk') {
-      ekgFinding = '12 導程心電圖：T 波非常尖高 (Peaked T wave)、QRS 波變寬！小雯：「高血鉀心電圖很危險，隨時會心室顫動！」';
-      extraVal = '高尖T波、QRS增寬';
-    }
-    return { reply: `${nurse}：「${ekgFinding}」`, action: 'ekg', vitalsUpdate: extraVal ? { extra: extraVal } : {} };
-  }
-
-  if (/(胸片|cxr|胸部\s*x\s*光|x\s*光)/i.test(t)) {
-    return { reply: `${nurse}：「已經聯絡放射科推床邊 CXR 機台過來照，照好會立刻上傳 PACS 系統！」`, action: 'cxr' };
-  }
-  if (/(給氧|氧氣|oxygen|o2|nasal\s*cannula|mask|面罩|鼻導管)/i.test(t)) {
-    return { reply: `${nurse}：「已經接上氧氣鼻導管 3 L/min，病人血氧監測維持中。」`, action: 'oxygen', vitalsUpdate: { spo2: Math.max(96, (v.spo2 || 94)) } };
-  }
+  // 優先檢查 CPR 急救
   if (/(cpr|壓胸|胸外按壓|心臟按壓|心跳停|arrest)/i.test(t)) {
     return { reply: `${nurse}：「病人摸不到脈搏！立刻開始壓胸 CPR，我去推急救車和 AED！」`, action: 'cpr' };
   }
@@ -595,6 +559,110 @@ function localClinicalRuleFallback(t, c, v) {
         nextStep: 'done'
       };
     }
+  }
+
+  // 7. 急性心衰竭肺水腫
+  if (cid === 'adhf') {
+    if (/(bipap|cpap|陽壓|furosemide|lasix|利尿|ntg|硝化甘油|坐起|坐起來)/i.test(t)) {
+      return {
+        reply: `${nurse}：「已協助黃伯伯維持高坐臥姿並打上 BiPAP 陽壓呼吸！靜脈注射 Lasix 40mg 加上 NTG 擴張後負荷，患者呼吸功明顯減輕，咳泡沫痰減少，雙肺囉音大幅吸收！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 84, bp: [136, 80], spo2: 97, breath: '濕囉音大幅吸收，呼吸平順', mind: '平穩，呼吸順暢' },
+        feedback: '急性肺水腫即刻 BiPAP 陽壓通氣並給予 Lasix + NTG 降後負荷，符合 Pocket Medicine ADHF 準則！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 8. 急性肺栓塞
+  if (cid === 'pe') {
+    if (/(heparin|抗凝|anticoagulant|tpa|溶栓|cta|高流量|面罩|icu)/i.test(t)) {
+      return {
+        reply: `${nurse}：「立即扣上高流量面罩氧氣，並靜脈給予抗凝血劑 Heparin 負荷劑量！張先生血氧由 83% 迅速回升至 96%，胸痛稍微穩定，已安全轉入 ICU 嚴密監護！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'icu',
+        vitalsUpdate: { hr: 92, bp: [118, 72], spo2: 96, rr: '20 次/分，呼吸平穩', mind: '安靜，發紺消退' },
+        feedback: '大塊肺栓塞無禁忌立即啟動治療劑量 Heparin 抗凝並收治重症加護，阻斷血栓蔓延！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 9. 嗜中性低下發燒
+  if (cid === 'neutro') {
+    if (/(培養|血培養|cefepime|tazocin|抗綠膿|廣效抗生素|輸液|抗生素)/i.test(t)) {
+      return {
+        reply: `${nurse}：「立即由 Port-A 與周邊血管各抽取一套血液培養，並在 1 小時內靜脈滴注 Cefepime 2g 與晶體輸液！郭小姐寒顫平息，體溫漸降，感染指標獲得控制！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 88, bp: [116, 70], spo2: 98, temp: '37.8°C，寒顫平息', mind: '清醒，精神好轉' },
+        feedback: '嗜中性低下發燒嚴格落實 Door-to-Antibiotic < 60 min 抽血並給予抗綠膿桿菌藥物，符合 Pocket Medicine 腫瘤急症指引！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 10. 過敏性休克
+  if (cid === 'anaph') {
+    if (/(epinephrine|腎上腺素|epi|大腿|肌肉注射|停點滴|輸液|抗組織胺|類固醇)/i.test(t)) {
+      return {
+        reply: `${nurse}：「立刻拔除點滴致敏抗生素！大腿前外側立即肌肉注射 Epinephrine 0.3mg 並全速灌注生理食鹽水！蔡小姐喉頭尖銳喘鳴聲迅速消退，血壓由 72 升回 118/74 mmHg，脫離窒息危險！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 90, bp: [118, 74], spo2: 98, skin: '風疹塊消退，呼吸順暢', mind: '平穩，脫離窒息危險' },
+        feedback: '過敏性休克第一首選唯一是肌肉注射 IM Epinephrine，迅速打開水腫氣道並逆轉休克，教科書級救命決策！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 常規診斷檢查與支持處置 (在未觸發直接治癒時執行)
+  if (/(量|量測|測|看|確認).{0,6}(生命徵象|vital|血壓|心跳|血氧|bp|hr|spo2)/i.test(t)) {
+    const bpStr = v.bp ? `${v.bp[0]}/${v.bp[1]} mmHg` : '量不到';
+    return {
+      reply: `${nurse}：「量好了！目前 HR ${v.hr || '--'} 次/分、BP ${bpStr}、SpO₂ ${v.spo2 || '--'}%，意識${v.mind || '未明'}。」`,
+      action: 'vital'
+    };
+  }
+
+  if (/(抽血|cbc|dc|生化|電解質|bun|cr|k|na|sugar|血糖|lab|blood\s*gas|abg)/i.test(t)) {
+    if (/(量|測|dxt|驗|驗一下|立即測).{0,6}(血糖|sugar|dxt)/i.test(t) && cid === 'hypo') {
+      return {
+        reply: `${nurse}：「立刻測指尖血糖！嗶——指尖 DXT 只有 32 mg/dL！病人嚴重低血糖，需要立即補充糖分！」`,
+        action: 'sugar_check',
+        vitalsUpdate: { extra: 32 }
+      };
+    }
+    return {
+      reply: `${nurse}：「好的，已經抽好血並加急送往檢驗科，報告大約 30 分鐘後出來，出來會即時通知醫師！」`,
+      action: 'draw_lab'
+    };
+  }
+
+  if (/(心電圖|ekg|ecg|12\s*lead)/i.test(t)) {
+    let ekgFinding = '12 導程心電圖已完成！圖形已輸出貼在床尾病歷夾。';
+    let extraVal = undefined;
+    if (cid === 'acs') {
+      ekgFinding = '12 導程心電圖已完成：V1–V4 導程 ST 段明顯抬高 (STEMI)！怡君：「前壁 ST 抬得好高，是急性心肌梗塞！」';
+      extraVal = 'V1–V4 ST 抬高 (STEMI)';
+    } else if (cid === 'hyperk') {
+      ekgFinding = '12 導程心電圖：T 波非常尖高 (Peaked T wave)、QRS 波變寬！小雯：「高血鉀心電圖很危險，隨時會心室顫動！」';
+      extraVal = '高尖T波、QRS增寬';
+    }
+    return { reply: `${nurse}：「${ekgFinding}」`, action: 'ekg', vitalsUpdate: extraVal ? { extra: extraVal } : {} };
+  }
+
+  if (/(胸片|cxr|胸部\s*x\s*光|x\s*光)/i.test(t)) {
+    return { reply: `${nurse}：「已經聯絡放射科推床邊 CXR 機台過來照，照好會立刻上傳 PACS 系統！」`, action: 'cxr' };
+  }
+
+  if (/(給氧|氧氣|oxygen|o2|nasal\s*cannula|mask|面罩|鼻導管)/i.test(t)) {
+    return { reply: `${nurse}：「已經接上氧氣鼻導管 3 L/min，病人血氧監測維持中。」`, action: 'oxygen', vitalsUpdate: { spo2: Math.max(96, (v.spo2 || 94)) } };
   }
 
   // 萬用結案交班命令（若醫師覺得處理得差不多了，下達交班或回值班室指令）

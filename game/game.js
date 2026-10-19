@@ -12,7 +12,7 @@ import { RenderPass } from './vendor/three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from './vendor/three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from './vendor/three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from './vendor/three/addons/utils/BufferGeometryUtils.js';
-import { PUBLIC_CALLS, DEEP_CALLS, DAWN_CALLS, AFTER_PHONE, PUBLIC_CASES, CPR } from './public-cases.js';
+import { PUBLIC_CALLS, DEEP_CALLS, DAWN_CALLS, AFTER_PHONE, PUBLIC_CASES, CPR, SPECIALTY_WARDS, STUDY_GUIDE } from './public-cases.js';
 import { CHATTER } from './chatter.js';
 import { askAiNurse, verifyAiConnection, AI_DEFAULTS } from './ai-nurse.js';
 
@@ -1293,8 +1293,17 @@ async function boot() {
   function startPublicNight() {
     PUBLIC_CASES.forEach(c => { CASES[c.id] = { bed: wb(c.bed), kind: 'public', level: 'red', nurse: c.nurse, short: c.short }; });
     const want = (S.shift === 'hard' ? 6 : 4) + Math.floor(Math.random() * 3);
-    // each slot takes a bed it can ring at, in a random order; a dark slot takes a 半夜 bed first
-    const left = pickN(PUBLIC_CASES, PUBLIC_CASES.length), filled = [];
+    const isSpec = S.wardBranch === 'specialty';
+    const spec = isSpec ? SPECIALTY_WARDS.find(w => w.id === S.specialty) : null;
+    let pool = [];
+    if (spec && spec.primaryCaseIds && spec.primaryCaseIds.length) {
+      const primaryCases = PUBLIC_CASES.filter(c => spec.primaryCaseIds.includes(c.id));
+      const otherCases = PUBLIC_CASES.filter(c => !spec.primaryCaseIds.includes(c.id));
+      pool = [...pickN(primaryCases, primaryCases.length), ...pickN(otherCases, otherCases.length)];
+    } else {
+      pool = pickN(PUBLIC_CASES, PUBLIC_CASES.length);
+    }
+    const left = [...pool], filled = [];
     for (const slot of NIGHT_SLOTS) {
       if (filled.length >= want) break;
       const fits = left.filter(c => slot.dark || !c.night);
@@ -2129,6 +2138,105 @@ async function boot() {
     Object.assign(document.createElement('a'), { href: CREDIT.url, target: '_blank', rel: 'noopener', textContent: new URL(CREDIT.url).host })));
   // the shift picked last time is picked again
   if (store.get(KEYS.shift) === 'hard') document.querySelector('#gShift [value="hard"]').checked = true;
+
+  // restore ward branch and specialty
+  const savedBranch = store.get('im_oncall_ward_branch');
+  if (savedBranch) {
+    const radio = document.querySelector(`#gWardBranch input[value="${savedBranch}"]`);
+    if (radio) radio.checked = true;
+  }
+  const savedSpec = store.get('im_oncall_ward_specialty');
+  if (savedSpec && $('gSpecialtySelect')) {
+    $('gSpecialtySelect').value = savedSpec;
+  }
+  const syncWardBranchUI = () => {
+    const isSpec = document.querySelector('#gWardBranch input:checked')?.value === 'specialty';
+    if ($('gSpecialtyRow')) $('gSpecialtyRow').hidden = !isSpec;
+  };
+  document.querySelectorAll('#gWardBranch input').forEach(r => r.addEventListener('change', syncWardBranchUI));
+  syncWardBranchUI();
+
+  // ---------- Pocket Medicine 臨床病例庫與學習重點彈窗 ----------
+  function renderStudyGuide(filterSpec = 'all') {
+    const body = $('studyBody');
+    if (!body) return;
+    const list = filterSpec === 'all'
+      ? STUDY_GUIDE
+      : STUDY_GUIDE.filter(g => g.specialtyId === filterSpec);
+
+    body.innerHTML = list.map(g => `
+      <article class="study-case-card" data-id="${esc(g.id)}">
+        <div class="scc-header">
+          <div class="scc-meta">
+            <span class="scc-badge">${esc(g.specialtyName)}</span>
+            <span class="scc-chapter">${esc(g.chapter)}</span>
+          </div>
+          <h3 class="scc-title">${esc(g.topic)}</h3>
+          <div class="scc-pt-info">
+            <span>👤 <strong>${esc(g.who)}</strong></span>
+            <span>🛏️ 床號：<strong>${esc(g.bed)}</strong></span>
+            <span>🚨 主訴：<strong>${esc(g.chiefComplaint)}</strong></span>
+          </div>
+        </div>
+        <div class="scc-vitals">
+          <span class="scc-vitals-label">初始數據</span>
+          <code>${esc(g.vitals)}</code>
+        </div>
+        <div class="scc-section soc">
+          <h4>📖 Pocket Medicine 核心臨床指引</h4>
+          <p>${esc(g.pocketMedicineSummary)}</p>
+        </div>
+        <div class="scc-grid">
+          <div class="scc-section must-do">
+            <h4>✅ 必做關鍵處置 (Must-Do Checklist)</h4>
+            <ul>
+              ${g.mustDoPearls.map(p => `<li>${esc(p)}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="scc-section pitfalls">
+            <h4>⚠️ 致命陷阱與禁忌 (Pitfalls to Avoid)</h4>
+            <ul>
+              ${g.pitfalls.map(p => `<li>${esc(p)}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+        <div class="scc-section labs">
+          <h4>🔬 關鍵檢驗與判讀要點</h4>
+          <ul>
+            ${g.labPearls.map(p => `<li>${esc(p)}</li>`).join('')}
+          </ul>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function openStudyGuide(spec = 'all') {
+    const m = $('studyModal');
+    if (!m) return;
+    m.hidden = false;
+    document.querySelectorAll('#studyTabs .study-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.spec === spec);
+    });
+    renderStudyGuide(spec);
+  }
+
+  function closeStudyGuide() {
+    if ($('studyModal')) $('studyModal').hidden = true;
+  }
+
+  $('btnOpenStudyGuide')?.addEventListener('click', () => openStudyGuide('all'));
+  $('btnCloseStudyGuide')?.addEventListener('click', closeStudyGuide);
+  $('btnStudyDone')?.addEventListener('click', closeStudyGuide);
+  $('studyDim')?.addEventListener('click', closeStudyGuide);
+
+  document.querySelectorAll('#studyTabs .study-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#studyTabs .study-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderStudyGuide(btn.dataset.spec);
+    });
+  });
+
   // the line under the settings only speaks when there is something to say
   const startHint = (text, err = false) => { $('gHint').hidden = false; $('gHint').textContent = text; $('gHint').classList.toggle('err', err); };
   // the missing-name note goes away as soon as there is a name
@@ -2173,6 +2281,10 @@ async function boot() {
     store.set(KEYS.name, S.nick);
     S.shift = document.querySelector('#gShift input:checked')?.value === 'hard' ? 'hard' : 'normal';
     store.set(KEYS.shift, S.shift);
+    S.wardBranch = document.querySelector('#gWardBranch input:checked')?.value || 'mixed';
+    store.set('im_oncall_ward_branch', S.wardBranch);
+    S.specialty = $('gSpecialtySelect')?.value || 'cv';
+    store.set('im_oncall_ward_specialty', S.specialty);
     if (providerEl) {
       store.set(KEYS.provider, providerEl.value);
       store.set(KEYS.key, keyEl ? keyEl.value.trim() : '');
@@ -2200,14 +2312,19 @@ async function boot() {
     { who: '女士', age: [30, 50], dx: '急性腸胃炎', lay: '今天開始吃粥，點滴明天可以停。' },
   ];
   function showBrief() {
-    $('briefTitle').textContent = `今晚，${WARD} 交給你了`;
-    $('briefEyebrow').textContent = `交班 · 熱愛 內科 ${WARD} 病房`;
+    const isSpec = S.wardBranch === 'specialty';
+    const spec = isSpec ? SPECIALTY_WARDS.find(w => w.id === S.specialty) : null;
+    const wardName = spec ? spec.name : `${WARD} 病房`;
+    const eyebrow = spec ? `交班 · ${spec.chapter}` : `交班 · 熱愛 內科 ${WARD} 病房`;
+    $('briefTitle').textContent = `今晚，${wardName} 交給你了`;
+    $('briefEyebrow').textContent = eyebrow;
     $('briefMe').src = ME('confident');
     $('briefLevel').textContent = `${S.nick ? `${S.nick}醫師` : '你'} · 今晚的值班醫師`;
     $('briefFrom').textContent = `白班 R1 ${pickN(['陳', '黃', '張', '李', '吳', '蔡'], 1)[0]}醫師 → 你`;
-    const n = Math.min(5, DECOYS.length);
+    const pool = (spec && spec.decoys) ? spec.decoys : DECOYS;
+    const n = Math.min(5, pool.length);
     const beds = pickN(BEDS.filter(b => !b.isCase && b.occupied), n).sort((a, b) => a.id.localeCompare(b.id));
-    const items = pickN(DECOYS, n);
+    const items = pickN(pool, n);
     $('briefList').innerHTML = beds.map((b, i) => {
       const d = items[i], age = d.age[0] + Math.floor(Math.random() * (d.age[1] - d.age[0] + 1));
       return `<div class="pt"><b>${b.id}</b><strong>${pickN(SURNAMES, 1)[0]}${d.who} ${age} 歲 · ${d.dx}</strong><span>${d.lay}</span></div>`;
@@ -2223,7 +2340,11 @@ async function boot() {
     S.started = true; frame.focus();
     startPublicNight();
     preload();
-    toast(`17:00 接班，${WARD} 病房交給你了。先熟悉一下環境吧。`, 4);
+    const isSpec = S.wardBranch === 'specialty';
+    const spec = isSpec ? SPECIALTY_WARDS.find(w => w.id === S.specialty) : null;
+    const wardName = spec ? spec.name : `${WARD} 病房`;
+    toast(`17:00 接班，${wardName}交給你了。先熟悉一下環境吧。`, 4);
+    $('hudWard').textContent = spec ? `${spec.shortName} · 值班` : `${WARD} 病房 · 值班`;
   }
   $('briefGo').addEventListener('click', beginShift);
   $('hudWard').textContent = `${WARD} 病房 · 值班`;
@@ -2235,6 +2356,7 @@ async function boot() {
   window.addEventListener('keydown', e => {
     if (typing(e)) { if (e.key === 'Escape') { e.target.blur(); frame.focus(); } return; }
     const k = e.key.toLowerCase();
+    if ($('studyModal') && !$('studyModal').hidden) { if (k === 'escape') { e.preventDefault(); closeStudyGuide(); } return; }
     if (!$('share').hidden) { if (k === 'escape') { e.preventDefault(); $('share').hidden = true; } return; }
     if (S.ended && k === 's' && !e.repeat && !$('handover').hidden) { e.preventDefault(); openShare(); return; }
     if (S.paused) { if (['p', 'escape', 'enter', ' '].includes(k)) { e.preventDefault(); setPaused(false); } return; }

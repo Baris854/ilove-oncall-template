@@ -573,3 +573,72 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 
 .pc-ask-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .4em; }
 .pc-hint-badge { font-size: .78em; color: var(--g-teal); background: rgba(69, 227, 204, .08); padding: .2em .6em; border-radius: .4em; border: 1px solid rgba(69, 227, 204, .2); }
+
+/* ---------- 值班病房分支選擇 (Ward Branching) ---------- */
+.ward-branch-fieldset { margin: 1em 0; padding: .9em 1.1em; border: 1.5px solid #1f374b; border-radius: .65em; background: rgba(13, 24, 34, .7); }
+.ward-branch-fieldset legend { font-size: .92em; font-weight: 700; color: #45e3cc; padding: 0 .4em; }
+.ward-branch-list { display: flex; flex-direction: column; gap: .65em; margin-top: .4em; }
+.ward-opt-card { display: flex; align-items: flex-start; gap: .75em; padding: .6em .85em; background: rgba(255, 255, 255, .03); border: 1px solid #1a2c3b; border-radius: .5em; cursor: pointer; transition: all .15s; }
+.ward-opt-card:hover { background: rgba(69, 227, 204, .06); border-color: rgba(69, 227, 204, .4); }
+.ward-opt-card:has(input:checked) { background: rgba(69, 227, 204, .1); border-color: var(--g-teal); box-shadow: 0 0 1em rgba(69, 227, 204, .15); }
+.ward-opt-card input { margin-top: .25em; accent-color: var(--g-teal); }
+.ward-opt-content b { display: block; font-size: .93em; color: #eaf3fb; }
+.ward-opt-content small { display: block; font-size: .78em; color: var(--g-dim); line-height: 1.35; margin-top: .15em; }
+
+/* ---------- 開始畫面學習重點按鈕 ---------- */
+.start-study-prompt { margin-top: 1.4em; padding-top: 1.1em; border-top: 1px solid rgba(255, 255, 255, .08); display: flex; flex-direction: column; gap: .4em; }
+.btn-study-guide { display: inline-flex; align-items: center; justify-content: center; gap: .5em; padding: .65em 1.1em; background: linear-gradient(135deg, rgba(69, 227, 204, .15), rgba(30, 78, 121, .3)); border: 1.5px solid var(--g-teal); border-radius: .5em; color: #45e3cc; font-size: .92em; font-weight: 700; cursor: pointer; transition: all .2s; }
+.btn-study-guide:hover { background: linear-gradient(135deg, rgba(69, 227, 204, .25), rgba(30, 78, 121, .5)); color: #fff; transform: translateY(-1px); box-shadow: 0 0 1.2em rgba(69, 227, 204, .3); }
+.study-guide-subtext { color: var(--g-dim); font-size: .78em; line-height: 1.4; }
+
+/* ---------- Pocket Medicine 臨床病例庫與學習重點彈窗 ---------- */
+.study-modal { z-index: 95; }
+.study-card { width: min(1040px, 94vw); max-height: 88vh; background: #0c141c; border: 1.5px solid #223749; border-radius: .9em; box-shadow: 0 0 3em rgba(0, 0, 0, .85), 0 0 1.5em rgba(69, 227, 204, .12); display: flex; flex-direction: column; overflow: hidden; animation: popIn .2s ease-out; }
+.study-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 1.2em 1.5em; background: linear-gradient(180deg, #13222f, #0c141c); border-bottom: 1px solid #1e3040; }
+.study-badge { display: inline-block; font-size: .74em; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #45e3cc; background: rgba(69, 227, 204, .1); padding: .2em .6em; border-radius: .3em; margin-bottom: .3em; border: 1px solid rgba(69, 227, 204, .25); }
+.study-header h2 { margin: 0 0 .25em; font-size: 1.35em; color: #eaf3fb; }
+.study-sub { margin: 0; color: #8faec9; font-size: .86em; line-height: 1.45; }
+.btn-study-close { background: transparent; border: none; font-size: 1.4em; color: #7f99b2; cursor: pointer; padding: .2em .5em; border-radius: .3em; transition: all .15s; }
+.btn-study-close:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+
+.study-tabs { display: flex; gap: .4em; padding: .65em 1.5em; background: #091017; border-bottom: 1px solid #182734; overflow-x: auto; flex-wrap: nowrap; }
+.study-tabs::-webkit-scrollbar { height: 4px; }
+.study-tabs::-webkit-scrollbar-thumb { background: #1f3549; border-radius: 2px; }
+.study-tab { flex: none; padding: .38em .85em; font-size: .82em; background: rgba(255, 255, 255, .04); border: 1px solid #1c2b38; border-radius: .4em; color: #8ca5bd; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.study-tab:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.study-tab.active { background: rgba(69, 227, 204, .15); border-color: var(--g-teal); color: #45e3cc; font-weight: 700; }
+
+.study-body { flex: 1; overflow-y: auto; padding: 1.3em 1.5em; display: flex; flex-direction: column; gap: 1.3em; }
+.study-body::-webkit-scrollbar { width: 6px; }
+.study-body::-webkit-scrollbar-thumb { background: #1e3549; border-radius: 3px; }
+
+.study-case-card { background: linear-gradient(135deg, rgba(16, 28, 39, .8), rgba(11, 18, 26, .9)); border: 1px solid #1e3243; border-radius: .75em; padding: 1.2em 1.3em; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); display: flex; flex-direction: column; gap: .85em; }
+.scc-header { display: flex; flex-direction: column; gap: .3em; }
+.scc-meta { display: flex; gap: .6em; align-items: center; flex-wrap: wrap; }
+.scc-badge { background: rgba(69, 227, 204, .12); color: #45e3cc; font-size: .75em; font-weight: 700; padding: .15em .55em; border-radius: .3em; border: 1px solid rgba(69, 227, 204, .25); }
+.scc-chapter { color: #82a3c2; font-size: .78em; font-weight: 600; }
+.scc-title { margin: .15em 0 .3em; font-size: 1.15em; color: #ffffff; }
+.scc-pt-info { display: flex; gap: 1em; font-size: .84em; color: #adc4d9; flex-wrap: wrap; background: rgba(0, 0, 0, .25); padding: .45em .75em; border-radius: .4em; border: 1px solid rgba(255, 255, 255, .04); }
+.scc-pt-info strong { color: #eaf3fb; }
+
+.scc-vitals { display: flex; align-items: center; gap: .7em; font-size: .84em; flex-wrap: wrap; }
+.scc-vitals-label { background: #192b3b; color: #7cb5ec; font-size: .74em; font-weight: 700; padding: .2em .5em; border-radius: .3em; }
+.scc-vitals code { font-family: var(--font-num, monospace); color: #ffeb99; font-size: .95em; }
+
+.scc-section { padding: .8em 1em; border-radius: .5em; font-size: .86em; line-height: 1.55; }
+.scc-section h4 { margin: 0 0 .4em; font-size: .95em; display: flex; align-items: center; gap: .4em; }
+.scc-section.soc { background: rgba(30, 78, 121, .15); border-left: 3.5px solid #3b82f6; color: #cfe2f7; }
+.scc-section.soc p { margin: 0; }
+
+.scc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; }
+@media (max-width: 768px) { .scc-grid { grid-template-columns: 1fr; } }
+
+.scc-section.must-do { background: rgba(91, 255, 143, .07); border-left: 3.5px solid #5bff8f; color: #d6fae5; }
+.scc-section.must-do ul, .scc-section.pitfalls ul, .scc-section.labs ul { margin: 0; padding-left: 1.25em; }
+.scc-section.must-do li, .scc-section.pitfalls li, .scc-section.labs li { margin-bottom: .3em; }
+
+.scc-section.pitfalls { background: rgba(255, 91, 107, .08); border-left: 3.5px solid #ff5b6b; color: #ffd6db; }
+.scc-section.labs { background: rgba(234, 179, 8, .08); border-left: 3.5px solid #eab308; color: #fef3c7; }
+
+.study-footer { display: flex; align-items: center; justify-content: space-between; padding: .85em 1.5em; background: #0c141c; border-top: 1px solid #1a2a38; }
+.study-hint-text { font-size: .82em; color: var(--g-dim); }
