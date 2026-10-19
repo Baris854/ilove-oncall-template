@@ -1261,9 +1261,9 @@ export const STUDY_GUIDE = [
   },
   {
     id: 'psepsis',
-    specialtyId: 'pulm',
-    specialtyName: '胸腔重症與感染科 (Critical Care & ID)',
-    chapter: 'Pocket Medicine: CRITICAL CARE (p. 112–116)',
+    specialtyId: 'inf',
+    specialtyName: '感染科暨重症加護 (Infectious Diseases)',
+    chapter: 'Pocket Medicine: INFECTIOUS DISEASES & CRITICAL CARE',
     bed: '11B',
     name: '林奶奶',
     who: '林奶奶 · 83 歲 · 泌尿道感染住院',

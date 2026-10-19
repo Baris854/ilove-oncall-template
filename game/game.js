@@ -1432,13 +1432,14 @@ async function boot() {
     const badge = $('pcAiBadge');
     if (badge) {
       const p = store.get(KEYS.provider) || 'gemini';
+      const m = store.get(KEYS.model) || AI_DEFAULTS[p]?.model || '';
       if (p === 'demo') {
         badge.className = 'pc-ai-badge demo';
         badge.textContent = '離線單機模式';
       } else {
         const pName = AI_DEFAULTS[p]?.name?.split(' ')[0] || p;
         badge.className = 'pc-ai-badge live';
-        badge.textContent = `⚡ AI 護理師 (${pName})`;
+        badge.textContent = `⚡ AI 護理師 (${pName}${m ? ` · ${m}` : ''})`;
       }
     }
     $('pcase').hidden = false;
@@ -1450,7 +1451,7 @@ async function boot() {
     // 「從這一床重來」 comes back to this moment
     if (PC.id !== id || !PC.snap) PC.snap = { t: S.t, energy: S.energy, plog: S.plog.length };
     Object.assign(PC, { id, step: 'first', state: late ? c.late : 'start', extra: null, danger: late ? 2 : 0, off: new Set(), log: [], orderFor: null,
-      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null, aiHistory: [], aiBusy: false });
+      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null, aiHistory: [], aiBusy: false, dynVitals: null });
     say(late ? 'alarm' : 'nurse', `${c.nurse}：「${late ? c.introLate : c.intro}」`);
     plog(`到 ${CASES[id].bed} ${c.name}床邊`);
     $('pcNurse').src = IMG(late ? 'nurse_panic' : 'nurse_worried');
@@ -1461,8 +1462,10 @@ async function boot() {
     head: ['頭部', '還沒看'], fit: ['抽搐', '還沒計時'], temp: ['體溫', '還沒量'], rr: ['呼吸次數', '還沒數'], stool: ['大便', '還沒看'],
     rhythm: ['心律', '還沒貼 AED'] };
   function monitorHtml() {
-    const c = C(), st = c.states[PC.state];
-    if (st[c.extra] !== undefined) PC.extra = st[c.extra];
+    const c = C();
+    const baseSt = c.states[PC.state] || {};
+    const st = { ...baseSt, ...(PC.dynVitals || {}) };
+    if (PC.extra === null && st[c.extra] !== undefined) PC.extra = st[c.extra];
     const cell = (label, value, word, cls = '') => `<div class="pc-v ${cls}"><small>${label}</small><b>${value}</b><em>${word}</em></div>`;
     const hr = st.hr === 0 ? cell('心跳', '—', '摸不到', 'bad')
       : cell('心跳', st.hr, st.hr > 120 ? '很快' : st.hr > 100 ? '偏快' : st.hr < 50 ? '很慢' : '正常', st.hr > 120 || st.hr < 50 ? 'bad' : st.hr > 100 ? 'warn' : '');
@@ -1470,11 +1473,11 @@ async function boot() {
       : cell('血壓', `${st.bp[0]}/${st.bp[1]}`, st.bp[0] < 90 ? '偏低' : st.bp[0] >= 180 ? '很高' : st.bp[0] >= 140 ? '偏高' : '正常', st.bp[0] < 90 || st.bp[0] >= 180 ? 'bad' : st.bp[0] >= 140 ? 'warn' : '');
     const sp = st.spo2 == null ? cell('血氧', '—', '測不到', 'bad')
       : cell('血氧', `${st.spo2}%`, st.spo2 < 90 ? '很低' : st.spo2 < 95 ? '偏低' : '正常', st.spo2 < 90 ? 'bad' : st.spo2 < 95 ? 'warn' : '');
-    const v = PC.extra, [label, none] = EXTRA[c.extra];
+    const v = PC.extra, [label, none] = (EXTRA[c.extra] || ['指標', '未測量']);
     const ex = v == null ? cell(label, '?', none, 'na txt')
       : c.extra === 'sugar' ? cell(label, v, v < 70 ? '太低' : v > 180 ? '偏高' : '正常', v < 70 ? 'bad' : v > 180 ? 'warn' : '')
       : cell(label, esc(v), '', `txt ${c.extraOk?.includes(v) ? '' : c.extraWarn?.includes(v) ? 'warn' : 'bad'}`);
-    return hr + bp + sp + ex + cell('意識', esc(st.mind), '', st.calm || /^清醒(?!，但)/.test(st.mind) ? 'mind' : 'mind bad');
+    return hr + bp + sp + ex + cell('意識', esc(st.mind || baseSt.mind || '未評估'), '', st.calm || /^清醒(?!，但)/.test(st.mind || '') ? 'mind' : 'mind bad');
   }
   function renderPublicCase() {
     const c = C();
@@ -1590,32 +1593,12 @@ async function boot() {
       }
 
       if (res.vitalsUpdate) {
+        PC.dynVitals = PC.dynVitals || {};
+        if (res.vitalsUpdate.hr !== undefined) PC.dynVitals.hr = res.vitalsUpdate.hr;
+        if (res.vitalsUpdate.bp !== undefined) PC.dynVitals.bp = res.vitalsUpdate.bp;
+        if (res.vitalsUpdate.spo2 !== undefined) PC.dynVitals.spo2 = res.vitalsUpdate.spo2;
+        if (res.vitalsUpdate.mind !== undefined) PC.dynVitals.mind = res.vitalsUpdate.mind;
         if (res.vitalsUpdate.extra !== undefined) PC.extra = res.vitalsUpdate.extra;
-      }
-
-      // 如果醫囑涵蓋了當前步驟的選項，自動推動進度
-      const step = c.steps[PC.step];
-      if (step && !PC.done) {
-        const normOrder = orderText.toLowerCase();
-        const matchedIndex = step.options.findIndex(opt => {
-          const optText = opt.text.toLowerCase();
-          return normOrder.includes(optText) || optText.includes(normOrder) ||
-                 (opt.id === 'sugar' && /血糖|dxt|sugar/i.test(normOrder)) ||
-                 (opt.id === 'd50' && /d50|葡萄糖|糖水/i.test(normOrder)) ||
-                 (opt.id === 'ct' && /ct|電腦斷層/i.test(normOrder)) ||
-                 (opt.id === 'ekg' && /心電圖|ekg|ecg/i.test(normOrder)) ||
-                 (opt.id === 'calcium' && /鈣|calcium/i.test(normOrder)) ||
-                 (opt.id === 'lines' && /iv|輸液|備血/i.test(normOrder)) ||
-                 (opt.id === 'bundle' && /培養|抗生素|輸液/i.test(normOrder)) ||
-                 (opt.id === 'neuro' && /神經|左右|fast|nihss/i.test(normOrder));
-        });
-        if (matchedIndex > -1) {
-          const displayIdx = PC.order ? PC.order.indexOf(matchedIndex) : matchedIndex;
-          if (displayIdx > -1) {
-            choosePublic(displayIdx);
-            return;
-          }
-        }
       }
     } catch (e) {
       console.error('Order error:', e);
@@ -2060,9 +2043,13 @@ async function boot() {
       }
     };
 
-    providerEl.addEventListener('change', updateProviderState);
+    providerEl.addEventListener('change', () => {
+      updateProviderState();
+      store.set(KEYS.provider, providerEl.value);
+    });
 
     const onKeyChanged = () => {
+      if (keyEl) store.set(KEYS.key, keyEl.value.trim());
       if (providerEl.value !== 'demo') {
         aiVerified = false;
         if (aiStatusEl && !aiStatusEl.hidden) {
@@ -2072,8 +2059,16 @@ async function boot() {
       }
     };
     keyEl?.addEventListener('input', onKeyChanged);
-    modelEl?.addEventListener('input', onKeyChanged);
-    customUrlEl?.addEventListener('input', onKeyChanged);
+    modelEl?.addEventListener('input', () => {
+      if (modelSelectEl?.value === '_custom_') {
+        store.set(KEYS.model, modelEl.value.trim());
+      }
+      onKeyChanged();
+    });
+    customUrlEl?.addEventListener('input', () => {
+      if (customUrlEl) store.set(KEYS.customUrl, customUrlEl.value.trim());
+      onKeyChanged();
+    });
 
     if (verifyBtn) {
       verifyBtn.addEventListener('click', async () => {
@@ -2098,16 +2093,24 @@ async function boot() {
           aiStatusEl.innerHTML = '<b>⏳ 正在與 AI 模型連線…</b><p>向護理師發送床邊就緒測試訊號中，請稍候…</p>';
         }
 
+        const chosenModel = (modelSelectEl && modelSelectEl.value !== '_custom_')
+          ? modelSelectEl.value
+          : (modelEl ? modelEl.value.trim() : '');
+
         try {
           const res = await verifyAiConnection({
             provider: p,
             apiKey: key,
-            model: modelEl ? modelEl.value.trim() : '',
+            model: chosenModel,
             customUrl: customUrlEl ? customUrlEl.value.trim() : ''
           });
 
           if (res.ok) {
             aiVerified = true;
+            store.set(KEYS.provider, p);
+            store.set(KEYS.key, key);
+            store.set(KEYS.model, chosenModel);
+            if (customUrlEl) store.set(KEYS.customUrl, customUrlEl.value.trim());
             if (aiStatusEl) {
               aiStatusEl.className = 'ai-verify-panel success';
               aiStatusEl.innerHTML = `<b>🟢 連線成功！AI 護理師已就緒</b><p>${esc(res.message)}</p>`;
@@ -2163,6 +2166,12 @@ async function boot() {
     const list = filterSpec === 'all'
       ? STUDY_GUIDE
       : STUDY_GUIDE.filter(g => g.specialtyId === filterSpec);
+
+    body.scrollTop = 0;
+    if (!list || list.length === 0) {
+      body.innerHTML = '<div style="padding: 2.5em; text-align: center; color: #8faec9; font-size: 1.05em;">暫無此專科的急症個案。</div>';
+      return;
+    }
 
     body.innerHTML = list.map(g => `
       <article class="study-case-card" data-id="${esc(g.id)}">
@@ -2288,7 +2297,10 @@ async function boot() {
     if (providerEl) {
       store.set(KEYS.provider, providerEl.value);
       store.set(KEYS.key, keyEl ? keyEl.value.trim() : '');
-      store.set(KEYS.model, modelEl ? modelEl.value.trim() : '');
+      const chosenModel = (modelSelectEl && modelSelectEl.value !== '_custom_')
+        ? modelSelectEl.value
+        : (modelEl ? modelEl.value.trim() : '');
+      store.set(KEYS.model, chosenModel);
       if (customUrlEl) store.set(KEYS.customUrl, customUrlEl.value.trim());
       if (levelEl) store.set(KEYS.level, levelEl.value);
     }

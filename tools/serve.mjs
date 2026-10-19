@@ -104,19 +104,59 @@ createServer(async (req, res) => {
       const { provider, apiKey, model, customUrl, messages, systemPrompt, userPrompt } = JSON.parse(Buffer.concat(buffers).toString() || '{}');
       const key = (apiKey || '').trim();
 
+      if (provider === 'demo') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, fallback: true, reply: '' }));
+      }
+
+      if (!key) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: `尚未設定 ${provider || 'AI'} API Key，請至開始畫面填寫` }));
+      }
+
       if (provider === 'gemini') {
         const targetModel = model || 'gemini-2.0-flash';
-        const fullPrompt = `${systemPrompt || ''}\n\n${userPrompt || (messages?.[messages.length - 1]?.content) || ''}`;
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`, {
+        const geminiContents = [];
+        if (Array.isArray(messages)) {
+          for (const m of messages) {
+            if (m.role === 'system') continue;
+            geminiContents.push({
+              role: m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: String(m.content || '') }]
+            });
+          }
+        }
+        if (geminiContents.length === 0) {
+          geminiContents.push({ role: 'user', parts: [{ text: userPrompt || '醫師已抵達床邊評估' }] });
+        }
+
+        const reqBody = {
+          contents: geminiContents,
+          safetySettings: GEMINI_SAFETY_SETTINGS,
+          generationConfig: { temperature: 0.4, maxOutputTokens: 500 }
+        };
+        if (systemPrompt) {
+          reqBody.system_instruction = { parts: [{ text: systemPrompt }] };
+        }
+
+        let r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-            safetySettings: GEMINI_SAFETY_SETTINGS,
-            generationConfig: { temperature: 0.5, maxOutputTokens: 300 }
-          })
+          body: JSON.stringify(reqBody)
         });
-        const data = await r.json().catch(() => ({}));
+        let data = await r.json().catch(() => ({}));
+        if (!r.ok && targetModel !== 'gemini-1.5-flash') {
+          const retry = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqBody)
+          });
+          if (retry.ok) {
+            r = retry;
+            data = await retry.json().catch(() => ({}));
+          }
+        }
+
         if (!r.ok) {
           res.writeHead(r.status, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: data.error?.message || `Gemini 錯誤 (${r.status})` }));
@@ -127,7 +167,7 @@ createServer(async (req, res) => {
           return res.end(JSON.stringify({ error: 'Gemini 未回傳文字，可能受到安全審查阻擋' }));
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ reply }));
+        return res.end(JSON.stringify({ ok: true, reply, modelUsed: targetModel }));
       }
 
       let endpoint = 'https://api.openai.com/v1/chat/completions';
@@ -136,10 +176,22 @@ createServer(async (req, res) => {
       else if (provider === 'custom' && customUrl) endpoint = customUrl;
 
       const targetModel = model || (provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini');
+      const openAiMessages = [];
+      if (systemPrompt) openAiMessages.push({ role: 'system', content: systemPrompt });
+      if (Array.isArray(messages)) {
+        for (const m of messages) {
+          if (m.role === 'system') continue;
+          openAiMessages.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || '' });
+        }
+      }
+      if (openAiMessages.length <= 1 && userPrompt) {
+        openAiMessages.push({ role: 'user', content: userPrompt });
+      }
+
       const r = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({ model: targetModel, messages, max_tokens: 300, temperature: 0.6 })
+        body: JSON.stringify({ model: targetModel, messages: openAiMessages, max_tokens: 500, temperature: 0.5 })
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -152,7 +204,7 @@ createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: '模型未回傳文字回覆' }));
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ reply }));
+      return res.end(JSON.stringify({ ok: true, reply, modelUsed: targetModel }));
     }
 
     let file = normalize(join(ROOT, path));

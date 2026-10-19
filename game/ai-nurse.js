@@ -205,7 +205,10 @@ export async function askAiNurse({
       reply: fallback.reply,
       action: fallback.action,
       vitalsUpdate: fallback.vitalsUpdate,
-      nextStep: fallback.nextStep
+      nextStep: fallback.nextStep,
+      cured: fallback.cured || fallback.action === 'cured',
+      outcome: fallback.outcome || 'stable',
+      feedback: fallback.feedback || ''
     };
   }
 
@@ -241,8 +244,13 @@ export async function askAiNurse({
    - 若醫師是問診、查體或安排檢查（量血壓、測血糖、做心電圖、照胸片、抽血）：回覆客觀的臨床發現。
    - 若醫師表示「處置完畢交班」但有嚴重致命遺漏（例如高血鉀未給鈣劑、心肌梗塞未做 EKG 與給 Aspirin、大出血未給輸液）：
      護理師應急迫提出臨床提醒，不可直接標記 cured。
-3. 標籤格式：請在回覆最末尾另起一行輸出：
-   [STATUS: cured|stable|warn|bad|arrest] [OUTCOME: stable|icu] [HR: 數字] [BP: 收縮壓/舒張壓] [SPO2: 數字] [EXTRA: 數值或描述] [MIND: 意識描述] [FEEDBACK: 臨床講評]`;
+3. 【無關內容、非醫療指令或閒聊處理規則】：
+   - 若醫師輸入的內容與當前病患急救完全無關（如純問候、開玩笑、無意義字詞、非醫療閒聊）：
+     * 護理師必須立刻以嚴肅焦急的專業口吻提醒醫師專注於急救：「醫師！${caseInfo.name || '病人'}現在情況非常危急（${vitalsDesc}），現在十萬火急，請專注於病情並立即下達急救處置醫囑！」
+     * 絕對不可標記 [STATUS: cured] 或 [STATUS: stable]，不可結案，不可推進任何步驟。
+     * 末尾標籤必須標記為：[STATUS: pending]
+4. 標籤格式：請在回覆最末尾另起一行輸出：
+   [STATUS: cured|stable|warn|bad|arrest|pending] [OUTCOME: stable|icu] [HR: 數字] [BP: 收縮壓/舒張壓] [SPO2: 數字] [EXTRA: 數值或描述] [MIND: 意識描述] [FEEDBACK: 臨床講評]`;
 
   // 構建對話歷史
   const messages = [{ role: 'system', content: systemPrompt }];
@@ -256,6 +264,7 @@ export async function askAiNurse({
 
   let rawAiText = '';
   let apiError = null;
+  let modelUsed = model || AI_DEFAULTS[provider]?.model;
 
   // 優先嘗試本地 serve.mjs 代理
   try {
@@ -277,6 +286,7 @@ export async function askAiNurse({
     const data = await proxyRes.json().catch(() => ({}));
     if (proxyRes.ok && data.reply) {
       rawAiText = data.reply;
+      if (data.modelUsed) modelUsed = data.modelUsed;
     } else if (data.error) {
       apiError = data.error;
     }
@@ -284,26 +294,48 @@ export async function askAiNurse({
     // 代理不可用，走前端直連
   }
 
-  // 前端直接呼叫 API
-  if (!rawAiText && !apiError) {
+  // 若代理未成功且非離線 Demo，嘗試前端直接呼叫 API
+  if (!rawAiText && provider !== 'demo' && apiKey.trim()) {
     try {
       if (provider === 'gemini') {
         const targetModel = model || AI_DEFAULTS.gemini.model;
-        const geminiContents = [
-          { role: 'user', parts: [{ text: `${systemPrompt}\n\n${doctorName}醫囑：「${normMsg}」` }] }
-        ];
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`, {
+        const geminiContents = [];
+        for (const h of history.slice(-6)) {
+          geminiContents.push({
+            role: h.role === 'nurse' ? 'model' : 'user',
+            parts: [{ text: h.text || h.content || '' }]
+          });
+        }
+        geminiContents.push({ role: 'user', parts: [{ text: `${doctorName}醫囑：「${normMsg}」` }] });
+
+        const reqBody = {
+          contents: geminiContents,
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          safetySettings: GEMINI_SAFETY_SETTINGS,
+          generationConfig: { temperature: 0.4, maxOutputTokens: 500 }
+        };
+
+        let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: geminiContents,
-            safetySettings: GEMINI_SAFETY_SETTINGS,
-            generationConfig: { temperature: 0.5, maxOutputTokens: 300 }
-          })
+          body: JSON.stringify(reqBody)
         });
-        const data = await res.json().catch(() => ({}));
+        let data = await res.json().catch(() => ({}));
+        if (!res.ok && targetModel !== 'gemini-1.5-flash') {
+          const retry = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqBody)
+          });
+          if (retry.ok) {
+            res = retry;
+            data = await retry.json().catch(() => ({}));
+          }
+        }
+
         if (res.ok) {
           rawAiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          apiError = null;
         } else {
           apiError = data.error?.message || `Gemini API 錯誤 (${res.status})`;
         }
@@ -322,19 +354,20 @@ export async function askAiNurse({
           body: JSON.stringify({
             model: model || AI_DEFAULTS[provider]?.model,
             messages,
-            max_tokens: 300,
-            temperature: 0.6
+            max_tokens: 500,
+            temperature: 0.5
           })
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
           rawAiText = data.choices?.[0]?.message?.content || '';
+          apiError = null;
         } else {
           apiError = data.error?.message || `${provider} API 錯誤 (${res.status})`;
         }
       }
     } catch (err) {
-      apiError = err.message || '網路連線異常';
+      if (!apiError) apiError = err.message || '網路連線異常';
     }
   }
 
@@ -344,25 +377,34 @@ export async function askAiNurse({
     return {
       isAi: true,
       providerName: AI_DEFAULTS[provider]?.name?.split(' ')[0] || provider,
+      modelUsed,
       reply: parsed.reply,
       action: parsed.action,
       vitalsUpdate: parsed.vitalsUpdate,
-      nextStep: parsed.nextStep
+      nextStep: parsed.nextStep,
+      cured: parsed.cured,
+      outcome: parsed.outcome,
+      feedback: parsed.feedback
     };
   }
 
-  // 4. 若 API 出錯，明確向玩家報警，而不是假裝 AI 回覆
+  // 4. 若 API 出錯或無回應，明確向玩家通知，而不是假裝 AI 回覆
   console.warn('AI 呼叫失敗:', apiError);
   const fallback = localClinicalRuleFallback(normMsg, caseInfo, vitals);
+  const errHint = apiError ? `⚠️【AI 連線失敗: ${apiError}】切換本地臨床備援：` : '';
   return {
     isAi: false,
     apiError: apiError || 'AI 連線未回傳資料',
-    reply: `${nurseName}：「（⚠️【AI 連線失敗: ${apiError || '伺服器未回傳'}】切換備援處置）${fallback.reply.replace(/^.*?：「/, '')}`,
+    reply: `${nurseName}：「${errHint}${fallback.reply.replace(/^.*?：「/, '')}`,
     action: fallback.action,
     vitalsUpdate: fallback.vitalsUpdate,
-    nextStep: fallback.nextStep
+    nextStep: fallback.nextStep,
+    cured: fallback.cured,
+    outcome: fallback.outcome,
+    feedback: fallback.feedback
   };
 }
+
 
 /**
  * 解析 AI 的文字與其輸出的結構化狀態標籤
@@ -428,7 +470,7 @@ function parseAiOutput(rawText, nurseName, caseInfo) {
 
   // 檢查是否有特殊臨床行為（補足 AI 未標籤時的情境）
   const lowText = rawText.toLowerCase();
-  if (!action) {
+  if (!action && !statusMatch) {
     if (/(抽血|cbc|生化|檢驗報告)/i.test(lowText)) action = 'draw_lab';
     else if (/(壓胸|cpr|除顫|電擊)/i.test(lowText)) action = 'cpr';
     else if (/(脫離危險|穩住了|好轉|恢復清醒|回升|安全範圍|血管打通|止血成功|洗腎順利)/i.test(lowText)) {
@@ -678,8 +720,19 @@ function localClinicalRuleFallback(t, c, v) {
     };
   }
 
+  // 檢查是否具有臨床處置意圖（如給藥、檢查、處置、量測、照護）
+  const hasClinicalIntent = /(給|打|開|量|測|照|抽|送|聯絡|通知|備|推|做|停|加|換|滴|轉|會診|吸|戴|插|抽血|心電圖|超音波|胸片|胸部x光|斷層|電腦斷層|氧氣|面罩|點滴|輸液|食鹽水|血液|紅血球|血漿|抗生素|降壓|升壓|止痛|鎮靜|插管|壓胸|cpr|vital|bp|hr|spo2|ekg|cxr|ct|abg|lab|iv|im|po)/i.test(t);
+
+  if (!hasClinicalIntent) {
+    const bpStr = v.bp ? `${v.bp[0]}/${v.bp[1]} mmHg` : '量不到';
+    return {
+      reply: `${nurse}：「醫師！${c.name || '病人'}目前情況危急（${v.mind || '意識改變'}、SpO₂ ${v.spo2 || '--'}%、BP ${bpStr}），現在十萬火急，請專注於急救並立即下達具體的臨床醫囑（例如量測數值、做檢查或急救藥物）！」`,
+      action: null
+    };
+  }
+
   return {
-    reply: `${nurse}：「收到醫師的指示：『${t}』，已立刻為病人執行並持續監測生命徵象。」`,
+    reply: `${nurse}：「收到醫師的指示：『${t}』，已立刻為病人執行並密切觀察臨床反應。」`,
     action: null
   };
 }

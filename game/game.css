@@ -592,8 +592,40 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 .study-guide-subtext { color: var(--g-dim); font-size: .78em; line-height: 1.4; }
 
 /* ---------- Pocket Medicine 臨床病例庫與學習重點彈窗 ---------- */
-.study-modal { z-index: 95; }
-.study-card { width: min(1040px, 94vw); max-height: 88vh; background: #0c141c; border: 1.5px solid #223749; border-radius: .9em; box-shadow: 0 0 3em rgba(0, 0, 0, .85), 0 0 1.5em rgba(69, 227, 204, .12); display: flex; flex-direction: column; overflow: hidden; animation: popIn .2s ease-out; }
+.study-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.5rem !important;
+  box-sizing: border-box !important;
+}
+.study-modal[hidden] {
+  display: none !important;
+}
+.study-modal .dim {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(4, 8, 14, .82) !important;
+  backdrop-filter: blur(8px) !important;
+  z-index: 1 !important;
+}
+.study-card {
+  position: relative !important;
+  z-index: 2 !important;
+  width: min(1040px, 94vw);
+  max-height: 88vh;
+  background: #0c141c;
+  border: 1.5px solid #223749;
+  border-radius: .9em;
+  box-shadow: 0 0 3em rgba(0, 0, 0, .85), 0 0 1.5em rgba(69, 227, 204, .15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popIn .2s ease-out;
+}
 .study-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 1.2em 1.5em; background: linear-gradient(180deg, #13222f, #0c141c); border-bottom: 1px solid #1e3040; }
 .study-badge { display: inline-block; font-size: .74em; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #45e3cc; background: rgba(69, 227, 204, .1); padding: .2em .6em; border-radius: .3em; margin-bottom: .3em; border: 1px solid rgba(69, 227, 204, .25); }
 .study-header h2 { margin: 0 0 .25em; font-size: 1.35em; color: #eaf3fb; }
