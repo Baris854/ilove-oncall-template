@@ -354,8 +354,8 @@
                   <option value="nephro">腎臟內科病房 (Nephrology) · 致命高血鉀 K 7.2、尿毒急症</option>
                   <option value="inf">感染科病房 (Infectious Diseases) · 敗血性休克、蜂窩性組織炎</option>
                   <option value="hem_onc">血液腫瘤科病房 (Hematology & Oncology) · 嗜中性低下發燒 (FN)</option>
-                  <option value="meta">內分泌暨新陳代謝科病房 (Endocrinology) · 致死性低血糖</option>
-                  <option value="neuro">神經內科病房 (Neurology) · 急性缺血性腦中風 (AIS)</option>
+                  <option value="meta">內分泌暨新陳代謝科病房 (Endocrinology) · 糖尿病酮酸中毒 (DKA/HHS)</option>
+                  <option value="neuro">神經內科病房 (Neurology) · 大血管中風併癲癇重積 (LVO/Status Epilepticus)</option>
                   <option value="rheum">風濕免疫科病房 (Rheumatology) · 嚴重過敏性休克 (Anaphylaxis)</option>
                 </select>
               </label>
@@ -373,6 +373,212 @@
             <p id="gDisclaimer" class="warn-note">本遊戲由 AI 生成病房情境，僅供衛教與模擬練習，不能取代實體就醫與臨床指導。</p>
             <p class="credit"></p>
           </div>
+
+          <!-- 全新：目前收錄個案情境統計與專科全覽模組 -->
+          <section class="start-cases-showcase" aria-labelledby="showcaseTitle">
+            <div class="sc-header">
+              <div class="sc-header-badge">臨床藍本 · Pocket Medicine 9th Edition 權威指引</div>
+              <h2 class="sc-title" id="showcaseTitle">🏥 目前收錄個案情境統計與專科全覽</h2>
+              <p class="sc-desc">本院值班模擬已徹底汰除舊版範例，全面改採 MGH 內科急症指引與真實病房情境。點選任一專科卡片可直接開啟該科學習重點！</p>
+            </div>
+
+            <!-- 核心統計指標 -->
+            <div class="sc-stats-bar">
+              <div class="sc-stat-pill">
+                <span class="num">10</span>
+                <span class="lbl">床 專科急重症情境</span>
+              </div>
+              <div class="sc-stat-pill">
+                <span class="num">7</span>
+                <span class="lbl">項 夜間常規護理呼叫</span>
+              </div>
+              <div class="sc-stat-pill">
+                <span class="num">9</span>
+                <span class="lbl">大 內科專科病房分支</span>
+              </div>
+              <div class="sc-stat-pill highlight">
+                <span class="num">100%</span>
+                <span class="lbl">AI 自然語言思考互動</span>
+              </div>
+            </div>
+
+            <!-- 專科情境網格 -->
+            <div class="sc-grid" id="scGrid">
+              <!-- 1. 心臟內科 -->
+              <div class="sc-card" data-spec="cv" tabindex="0" role="button" aria-label="查看心臟內科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🫀</span>
+                  <div class="sc-card-title-wrap">
+                    <b>心臟內科 (Cardiology)</b>
+                    <span class="sc-badge-count">2 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">03A</span> <b>林先生 (56歲)</b> · 急性心肌梗塞 (STEMI) / 心導管介入</li>
+                  <li><span class="sc-bed-tag">08C</span> <b>黃伯伯 (76歲)</b> · 急性心衰竭肺水腫 (ADHF) / BiPAP</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 2. 胸腔暨重症加護 -->
+              <div class="sc-card" data-spec="pulm" tabindex="0" role="button" aria-label="查看胸腔重症案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🫁</span>
+                  <div class="sc-card-title-wrap">
+                    <b>胸腔暨重症 (Pulmonary & CC)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">04B</span> <b>張先生 (58歲)</b> · 術後大塊肺動脈血栓栓塞 (PE) / 抗凝</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 3. 感染科暨重症 -->
+              <div class="sc-card" data-spec="inf" tabindex="0" role="button" aria-label="查看感染科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🦠</span>
+                  <div class="sc-card-title-wrap">
+                    <b>感染科 (Infectious Diseases)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">11B</span> <b>林奶奶 (83歲)</b> · 嚴重敗血性休克 (Septic Shock Hour-1 Bundle)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 4. 胃腸肝膽科 -->
+              <div class="sc-card" data-spec="gi" tabindex="0" role="button" aria-label="查看胃腸肝膽科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🩺</span>
+                  <div class="sc-card-title-wrap">
+                    <b>胃腸肝膽科 (Gastroenterology)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">07A</span> <b>吳先生 (54歲)</b> · 肝硬化食道靜脈曲張大出血 (EVL / 降門脈壓)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 5. 腎臟內科 -->
+              <div class="sc-card" data-spec="nephro" tabindex="0" role="button" aria-label="查看腎臟內科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🫘</span>
+                  <div class="sc-card-title-wrap">
+                    <b>腎臟內科 (Nephrology)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">06A</span> <b>洪阿伯 (71歲)</b> · 尿毒透析致命性重度高血鉀 (K 7.2 / 膜電位穩定)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 6. 血液腫瘤科 -->
+              <div class="sc-card" data-spec="hem_onc" tabindex="0" role="button" aria-label="查看血液腫瘤科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🩸</span>
+                  <div class="sc-card-title-wrap">
+                    <b>血液腫瘤科 (Hematology & Onc)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">06B</span> <b>郭小姐 (48歲)</b> · 嗜中性白血球低下發燒 (Febrile Neutropenia)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 7. 新陳代謝與內分泌科 -->
+              <div class="sc-card" data-spec="meta" tabindex="0" role="button" aria-label="查看新陳代謝科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🍬</span>
+                  <div class="sc-card-title-wrap">
+                    <b>新陳代謝科 (Endocrinology)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">03C</span> <b>趙先生 (42歲)</b> · 糖尿病酮酸中毒危象 (DKA / HHS 血糖 >600)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 8. 神經內科 -->
+              <div class="sc-card" data-spec="neuro" tabindex="0" role="button" aria-label="查看神經內科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🧠</span>
+                  <div class="sc-card-title-wrap">
+                    <b>神經內科 (Neurology)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">08B</span> <b>洪伯伯 (68歲)</b> · 急性大血管中風併癲癇重積 (LVO / 取栓 EVT)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 9. 風濕免疫與過敏科 -->
+              <div class="sc-card" data-spec="rheum" tabindex="0" role="button" aria-label="查看風濕免疫科案例">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🛡️</span>
+                  <div class="sc-card-title-wrap">
+                    <b>風濕免疫科 (Rheumatology)</b>
+                    <span class="sc-badge-count">1 床急症</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list">
+                  <li><span class="sc-bed-tag">07B</span> <b>蔡小姐 (36歲)</b> · 嚴重過敏性休克 (Anaphylaxis / Epinephrine)</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-action-hint">點擊查閱臨床重點 📖</span>
+                </div>
+              </div>
+
+              <!-- 10. 夜間常規護理站呼叫 -->
+              <div class="sc-card sc-ward-card" tabindex="0" role="button" aria-label="查看夜間常規病房呼叫">
+                <div class="sc-card-head">
+                  <span class="sc-card-icon">🌙</span>
+                  <div class="sc-card-title-wrap">
+                    <b>夜間常規病房呼叫 (Ward Calls)</b>
+                    <span class="sc-badge-count call">7 種情境</span>
+                  </div>
+                </div>
+                <ul class="sc-case-list mini">
+                  <li><span class="sc-time-tag">傍晚</span> 03B 肺炎新病人交班 / 08A 失眠安眠藥</li>
+                  <li><span class="sc-time-tag">熄燈</span> 03A 點滴換瓶 / 11A 家屬詢問出院時間</li>
+                  <li><span class="sc-time-tag">深夜</span> 11A 體溫 37.8°C 微熱電話回報</li>
+                  <li><span class="sc-time-tag">清晨</span> 08A 三天無大便軟便劑 / 03B 晨起血壓偏高</li>
+                </ul>
+                <div class="sc-card-footer">
+                  <span class="sc-note">電話中快速辨識輕重緩急：小事電話交代，真正危險親赴床邊。</span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 

@@ -2246,6 +2246,18 @@ async function boot() {
     });
   });
 
+  // 主頁專科全覽卡片點擊事件：直接開啟 Pocket Medicine 學習重點並切換至該專科分頁
+  document.querySelectorAll('#scGrid .sc-card[data-spec]').forEach(card => {
+    const spec = card.dataset.spec;
+    card.addEventListener('click', () => openStudyGuide(spec));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openStudyGuide(spec);
+      }
+    });
+  });
+
   // the line under the settings only speaks when there is something to say
   const startHint = (text, err = false) => { $('gHint').hidden = false; $('gHint').textContent = text; $('gHint').classList.toggle('err', err); };
   // the missing-name note goes away as soon as there is a name

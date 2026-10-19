@@ -221,8 +221,8 @@ export async function askAiNurse({
 - 床邊值班醫師：${doctorName}（職級：${doctorLevel}）
 
 【Pocket Medicine 9th 臨床指引搶救核心】：
-1. 低血糖 (phypo): 測指尖血糖 -> 意識不清立即 IV push D50W (高濃度葡萄糖) -> 甦醒後進食、停用降血糖藥。
-2. 急性腦中風 (pstroke): FAST評估、確認最後正常時間 (LKW) -> 測血糖 -> 急照無顯影腦部電腦斷層 (Non-contrast Head CT) -> 評估血栓溶解劑 (rtPA) -> 轉 ICU。切勿盲目積極降血壓。
+1. 糖尿病高血糖酮酸中毒/高滲透壓危象 (phypo): 大量生理食鹽水 (0.9% NS 1000 mL/h) 快速輸液復甦 -> 查核血鉀 (確認 K+ >= 3.3) -> Regular Insulin 靜脈滴注 (0.1 U/kg/h) -> 血糖降至 250 mg/dL 轉含糖晶體液 (D5 0.45% NS + KCl) 續滴胰島素直至消除陰離子隙 (Closure of AG)。切忌未補水未查鉀即推胰島素，切忌過早驟停胰島素。
+2. 急性大血管閉塞中風併癲癇重積 (pstroke): 維持呼吸道與抽痰給氧 -> 立即靜脈注射 Lorazepam (Ativan) 4mg 終止抽搐 -> 靜脈給予 Levetiracetam (Keppra 2000mg loading) 預防復發 -> 測血糖排除低血糖 -> 急送腦部 NCCT + CTA 評估大血管閉塞 (LVO) -> 啟動動脈機械取栓 (EVT) -> 轉 NICU。嚴禁過度降血壓。
 3. 急性心肌梗塞 (pacs): 10分鐘內做 12 導程 EKG + 給氧 -> 嚼服 Aspirin (160-325mg) + 舌下含 NTG (血壓許可) -> 急驗 Troponin -> 啟動心導管室 (Code STEMI) 進行冠脈介入治療 -> 轉 CCU。
 4. 心衰竭肺水腫 (padhf): 端坐呼吸 + 咳粉紅泡沫痰 -> 坐起並立即非侵襲性陽壓呼吸 (BiPAP/CPAP) -> 靜脈利尿劑 (IV Furosemide) + 血管擴張劑 (IV NTG，血壓許可下) 降後負荷 -> 轉 CCU。嚴禁平躺或給予 Beta-blocker。
 5. 致命性高血鉀 (phyperk): 心電圖見寬 QRS/高尖 T 波 -> 立即 IV Calcium gluconate (10mL) 穩定細胞膜 -> IV RI 10U + D50W 2支 (促鉀入細胞) -> 吸入 Albuterol -> 聯繫腎臟科安排急診血液透析 (HD)。
@@ -503,43 +503,47 @@ function localClinicalRuleFallback(t, c, v) {
     return { reply: `${nurse}：「病人摸不到脈搏！立刻開始壓胸 CPR，我去推急救車和 AED！」`, action: 'cpr' };
   }
 
-  // 1. 低血糖
+  // 1. 糖尿病酮酸中毒危象 (DKA / HHS)
   if (cid === 'hypo') {
-    if (/(d50|d50w|葡萄糖|高濃度葡萄糖|給糖|推糖|推d50|50%\s*glucose|glucagon|升糖素)/i.test(t)) {
+    if (/(生理食鹽水|normal\s*saline|0\.9%|輸液|打點滴|灌水|fluid|hydration|大量點滴|ns|查鉀|血鉀|k\+|regular\s*insulin|ri|胰島素滴注|胰島素|d5|加糖|轉加護|icu)/i.test(t)) {
       return {
-        reply: `${nurse}：「收到！立刻靜脈推注 D50W 2 支（40 mL）！……推完了，病人眼睛眨了眨，意識慢慢恢復清醒，剛剛複測血糖上升到 118 mg/dL！」`,
+        reply: `${nurse}：「收到！立即建立兩條大口徑 IV，給予 0.9% Normal Saline 1000 mL/hr 快速輸液！急件血鉀回報 4.2 mmol/L，已同步啟動 Regular Insulin 連續靜脈滴注（0.1 U/kg/h）！趙先生呼吸深大喘氣減輕，血糖降至 230 mg/dL，已遵囑換上含糖晶體液 D5 0.45% NS 續滴微量胰島素保護腦細胞！」`,
         action: 'cured',
         cured: true,
         outcome: 'stable',
-        vitalsUpdate: { extra: 118, mind: '清醒，能回答名字' },
-        feedback: '低血糖昏迷立即靜脈給予 D50W，病患迅速清醒，落實 Pocket Medicine 臨床準則！',
+        vitalsUpdate: { hr: 94, bp: [116, 72], spo2: 97, sugar: 230, mind: '意識轉清醒，深大呼吸平息' },
+        feedback: 'DKA 處置精準落實：優先大劑量 NS 輸液復甦、查核血鉀安全後連續靜脈胰島素，並於血糖小於 250 切換 D5 NS 消除陰離子隙，完全符合 Pocket Medicine 核心規範！',
         nextStep: 'done'
       };
     }
-    if (/(鎮靜|haloperidol|ativan|dormicum|valium|安眠|睡覺|打針讓他睡|拘束|綁起來)/i.test(t)) {
+    if (/(單純推胰島素|直接推ri|push\s*ri|大量胰島素|碳酸氫鈉|bicarb|nahco3|利尿劑|lasix)/i.test(t)) {
       return {
-        reply: `${nurse}：「醫師……低血糖躁動給鎮靜劑非常危險！病人呼吸開始變慢，血氧掉到 85% 了！」`,
+        reply: `${nurse}：「醫師！病人嚴重脫水至少 5 公升，在未給足輸液與確認血鉀前盲目給藥或鹼化，趙先生血壓暴跌到 70/40 mmHg，四肢冰冷陷入休克了！」`,
         action: 'worsen',
-        vitalsUpdate: { spo2: 85, mind: '昏迷叫不醒' }
+        vitalsUpdate: { hr: 142, bp: [70, 40], mind: '重度休克，呼叫無反應' }
       };
     }
   }
 
-  // 2. 中風
+  // 2. 急性大血管閉塞中風併癲癇重積 (LVO Stroke & Status Epilepticus)
   if (cid === 'stroke') {
-    if (/(ct|電腦斷層|brain\s*ct|腦部\s*ct|急診ct|排除出血|rt-?pa|血栓溶解)/i.test(t)) {
+    if (/(ativan|lorazepam|安定|keppra|levetiracetam|抽痰|維持呼吸道|側躺|給氧|ct|cta|血管攝影|取栓|evt|動脈取栓|code\s*stroke|中風小組)/i.test(t)) {
       return {
-        reply: `${nurse}：「馬上聯絡 CT 室安排 non-contrast brain CT！同時已經通知神經科值班總值待命評估 rt-PA，陳阿嬤病情已迅速進入急診綠色通道！」`,
+        reply: `${nurse}：「收到！立即保持側躺維持呼吸道抽痰，並靜脈慢推 Lorazepam (Ativan) 4 mg！抽搐在 90 秒內完全停止！隨後已接上 Levetiracetam (Keppra) 2000 mg IV loading。急診 CTA 證實右側近端 MCA M1 閉塞，已啟動 Code Stroke 綠色通道由放射科團隊進行動脈取栓 (EVT)！」`,
         action: 'cured',
         cured: true,
         outcome: 'stable',
-        vitalsUpdate: { mind: '右上肢無力，意識清楚' },
-        feedback: '急性中風黃金期內排除禁忌並急照 CT 評估血栓溶解劑，掌握 Pocket Medicine 搶救時間！',
+        vitalsUpdate: { hr: 86, bp: [158, 92], spo2: 98, fit: '抽搐終止', mind: '意識漸醒，左上肢無力改善' },
+        feedback: '癲癇重積第一時間 Lorazepam 終止發作，及時 Keppra loading 預防復發，並果斷安排 CTA 啟動動脈機械取栓 (EVT)，展現 Pocket Medicine 神經重症水準！',
         nextStep: 'done'
       };
     }
-    if (/(降壓|降血壓|labetalol|nicardipine|hydralazine|降壓藥|把血壓打下來)/i.test(t)) {
-      return { reply: `${nurse}：「醫師，目前血壓雖然 178/96，但缺血性中風盲目強力降壓會降低腦部灌流！建議先做 CT 排除出血再決定！」`, action: 'warn' };
+    if (/(壓舌板|塞毛巾|撬開嘴巴|塞嘴巴|硬塞|強力降壓|降壓藥|把血壓打到120|大量降壓)/i.test(t)) {
+      return {
+        reply: `${nurse}：「醫師！抽搐時嚴禁塞入硬物，盲目撬嘴極易造成斷牙窒息；且中風過度降壓會摧毀側支循環！病人血氧掉到 78%，請立即調整處置！」`,
+        action: 'worsen',
+        vitalsUpdate: { spo2: 78, mind: '發紺，呼吸道窒息' }
+      };
     }
   }
 
