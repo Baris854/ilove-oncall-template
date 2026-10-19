@@ -14,6 +14,7 @@ import { OutputPass } from './vendor/three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from './vendor/three/addons/utils/BufferGeometryUtils.js';
 import { PUBLIC_CALLS, DEEP_CALLS, DAWN_CALLS, AFTER_PHONE, PUBLIC_CASES, CPR } from './public-cases.js';
 import { CHATTER } from './chatter.js';
+import { askAiNurse, verifyAiConnection, AI_DEFAULTS } from './ai-nurse.js';
 
 // game.css hangs off this class; set it here too so a host page that owns <body> still gets it
 document.body.classList.add('game-page');
@@ -1428,10 +1429,12 @@ async function boot() {
     // 「從這一床重來」 comes back to this moment
     if (PC.id !== id || !PC.snap) PC.snap = { t: S.t, energy: S.energy, plog: S.plog.length };
     Object.assign(PC, { id, step: 'first', state: late ? c.late : 'start', extra: null, danger: late ? 2 : 0, off: new Set(), log: [], orderFor: null,
-      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null });
+      warned: late && c.late === c.warn.state, cpr: null, done: false, outcome: null, aiHistory: [], aiBusy: false });
     say(late ? 'alarm' : 'nurse', `${c.nurse}：「${late ? c.introLate : c.intro}」`);
     plog(`到 ${CASES[id].bed} ${c.name}床邊`);
     $('pcNurse').src = IMG(late ? 'nurse_panic' : 'nurse_worried');
+    if ($('pcOrderInput')) { $('pcOrderInput').value = ''; $('pcOrderInput').disabled = false; }
+    if ($('pcOrderSend')) $('pcOrderSend').disabled = false;
   }
   const EXTRA = { sugar: ['血糖', '還沒測'], ekg: ['心電圖', '還沒做'], breath: ['呼吸聲', '還沒聽'], urine: ['尿量', '還沒看'], skin: ['皮膚', '還沒看'],
     head: ['頭部', '還沒看'], fit: ['抽搐', '還沒計時'], temp: ['體溫', '還沒量'], rr: ['呼吸次數', '還沒數'], stool: ['大便', '還沒看'],
@@ -1458,6 +1461,7 @@ async function boot() {
     $('pcLog').innerHTML = PC.log.map(l => `<p class="${l.cls}">${esc(l.text)}</p>`).join('');
     $('pcLog').scrollTop = $('pcLog').scrollHeight;
     $('pcCpr').hidden = !PC.cpr; $('pcAsk').hidden = !!PC.cpr;
+    if ($('pcOrderBox')) $('pcOrderBox').hidden = !!PC.cpr || PC.done;
     publicLabButton();
     if (PC.cpr) return;
     if (PC.done) {
@@ -1475,6 +1479,110 @@ async function boot() {
       return `<button class="btn pc-opt" type="button" data-i="${pos}"${PC.off.has(o.id) ? ' disabled' : ''}><span class="key">${pos + 1}</span><span>${esc(o.text)}</span></button>`;
     }).join('');
   }
+
+  // 床邊自然語言對話與醫囑處理
+  async function onDoctorOrder(text) {
+    if (!text || !text.trim() || PC.aiBusy || PC.cpr || PC.done || S.mode !== 'pcase') return;
+    const input = $('pcOrderInput'), sendBtn = $('pcOrderSend');
+    const orderText = text.trim();
+    if (input) input.value = '';
+
+    say('you', orderText);
+    plog(`你：${orderText}`);
+    PC.aiBusy = true;
+    if (input) input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    const c = C();
+    const pendingObj = { cls: 'nurse pending', text: `${c.nurse}正在確認醫囑…` };
+    PC.log.push(pendingObj);
+    renderPublicCase();
+
+    try {
+      const st = c.states[PC.state] || {};
+      const res = await askAiNurse({
+        provider: store.get(KEYS.provider) || 'github',
+        apiKey: store.get(KEYS.key) || '',
+        model: store.get(KEYS.model) || '',
+        caseInfo: { id: PC.id, name: c.name, bed: CASES[PC.id].bed, nurse: c.nurse, who: c.who, intro: c.intro, extra: c.extra },
+        vitals: { hr: st.hr, bp: st.bp, spo2: st.spo2, extra: PC.extra, mind: st.mind },
+        history: PC.aiHistory || [],
+        message: orderText,
+        doctorName: S.nick || '值班醫師',
+        doctorLevel: store.get(KEYS.level) || 'pgy'
+      });
+
+      const pIdx = PC.log.indexOf(pendingObj);
+      if (pIdx > -1) PC.log.splice(pIdx, 1);
+
+      say('nurse', res.reply);
+      PC.aiHistory = PC.aiHistory || [];
+      PC.aiHistory.push({ role: 'doctor', content: orderText }, { role: 'nurse', content: res.reply });
+
+      // 觸發臨床狀態變更
+      if (res.action === 'draw_lab') {
+        publicDraw(S.t);
+        labsArrive();
+      } else if (res.action === 'cpr') {
+        startCpr();
+        return;
+      } else if (res.action === 'cure_hypo' && c.id === 'hypo') {
+        PC.extra = 118;
+        PC.state = 'safe';
+        PC.done = true; PC.outcome = 'best'; S.outcome[PC.id] = 'best';
+        resolve(PC.id, true); $('pcNurse').src = IMG('nurse_thankful');
+        plog(c.results.best, 'best');
+      } else if (res.action === 'cure_stroke' && c.id === 'stroke') {
+        PC.done = true; PC.outcome = 'best'; S.outcome[PC.id] = 'best';
+        resolve(PC.id, true); $('pcNurse').src = IMG('nurse_thankful');
+        plog(c.results.best, 'best');
+      } else if (res.action === 'worsen') {
+        PC.danger += 2;
+        if (PC.danger >= 5) { publicArrest(); return; }
+        else if (PC.danger >= 3 && !PC.warned) {
+          PC.warned = true; PC.state = c.warn.state;
+          say('alarm', c.warn.line); plog(c.warn.log, 'warn');
+          $('pcNurse').src = IMG('nurse_panic');
+        }
+      }
+
+      if (res.vitalsUpdate) {
+        if (res.vitalsUpdate.extra !== undefined) PC.extra = res.vitalsUpdate.extra;
+      }
+
+      // 如果醫囑涵蓋了當前步驟的選項，自動推動進度
+      const step = c.steps[PC.step];
+      if (step && !PC.done) {
+        const normOrder = orderText.toLowerCase();
+        const matchedIndex = step.options.findIndex(opt => {
+          const optText = opt.text.toLowerCase();
+          return normOrder.includes(optText) || optText.includes(normOrder) ||
+                 (opt.id === 'sugar' && /血糖|dxt|sugar/i.test(normOrder)) ||
+                 (opt.id === 'd50' && /d50|葡萄糖|糖水/i.test(normOrder)) ||
+                 (opt.id === 'ct' && /ct|電腦斷層/i.test(normOrder)) ||
+                 (opt.id === 'neuro' && /神經|左右|fast|nihss/i.test(normOrder));
+        });
+        if (matchedIndex > -1) {
+          const displayIdx = PC.order ? PC.order.indexOf(matchedIndex) : matchedIndex;
+          if (displayIdx > -1) {
+            choosePublic(displayIdx);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Order error:', e);
+      const pIdx = PC.log.indexOf(pendingObj);
+      if (pIdx > -1) PC.log.splice(pIdx, 1);
+      say('nurse', `${c.nurse}：「收到醫師的指示，正在為病人執行處置。」`);
+    } finally {
+      PC.aiBusy = false;
+      if (input) { input.disabled = false; input.focus(); }
+      if (sendBtn) sendBtn.disabled = false;
+      renderPublicCase();
+    }
+  }
+
   // A screen that appears under a finger still tapping the compressions -- or a key still pressing
   // them -- takes no taps for a moment: on Android the next tap landed on a choice the doctor had
   // not read yet. Held elements are dimmed and ignore pointer and keyboard alike.
@@ -1488,6 +1596,14 @@ async function boot() {
   $('pcOpts').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || held($('pcOpts'))) return;
     if (b.dataset.end === 'back') closePublicCase(); else choosePublic(Number(b.dataset.i));
+  });
+  $('pcOrderForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    onDoctorOrder($('pcOrderInput')?.value || '');
+  });
+  $('pcQuickBar')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-order]');
+    if (btn && btn.dataset.order) onDoctorOrder(btn.dataset.order);
   });
   $('pcPause').addEventListener('click', () => setPaused(true));
   // blood tests: one draw per bed, the numbers come back LAB_WAIT game
@@ -1792,13 +1908,65 @@ async function boot() {
   $('btnMap').addEventListener('click', () => { S.map = !S.map; frame.focus(); });
 
   // ---------- start ----------
-  // only the nickname and the shift are kept, in this browser
-  const KEYS = { name: 'oncall_template_name', shift: 'oncall_template_shift' };
+  const KEYS = {
+    name: 'oncall_template_name',
+    shift: 'oncall_template_shift',
+    provider: 'oncall_provider',
+    key: 'oncall_api_key',
+    model: 'oncall_model',
+    level: 'oncall_level'
+  };
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode: nothing is kept */ } },
   };
   $('gName').value = store.get(KEYS.name);
+
+  const providerEl = $('gProvider'), keyEl = $('gApiKey'), modelEl = $('gModel'), levelEl = $('gLevel');
+  const verifyBtn = $('btnVerifyAi'), aiStatusEl = $('gAiStatus'), keyNoteEl = $('gKeyNote');
+
+  if (providerEl) {
+    providerEl.value = store.get(KEYS.provider) || 'github';
+    const curP = providerEl.value;
+    if (modelEl) modelEl.value = store.get(KEYS.model) || (AI_DEFAULTS[curP]?.model || '');
+    if (keyEl) keyEl.value = store.get(KEYS.key) || '';
+    if (levelEl) levelEl.value = store.get(KEYS.level) || 'pgy';
+    if (keyNoteEl && AI_DEFAULTS[curP]) keyNoteEl.textContent = AI_DEFAULTS[curP].hint;
+    if (keyEl && AI_DEFAULTS[curP]) keyEl.placeholder = AI_DEFAULTS[curP].placeholder;
+
+    providerEl.addEventListener('change', () => {
+      const p = providerEl.value;
+      const def = AI_DEFAULTS[p];
+      if (def) {
+        if (modelEl) modelEl.value = def.model;
+        if (keyEl) keyEl.placeholder = def.placeholder;
+        if (keyNoteEl) keyNoteEl.textContent = def.hint;
+      }
+    });
+
+    if (verifyBtn) {
+      verifyBtn.addEventListener('click', async () => {
+        verifyBtn.disabled = true;
+        if (aiStatusEl) {
+          aiStatusEl.hidden = false;
+          aiStatusEl.className = 'sf-hint';
+          aiStatusEl.textContent = '連線測試中…';
+        }
+        const res = await verifyAiConnection({
+          provider: providerEl.value,
+          apiKey: keyEl.value,
+          model: modelEl ? modelEl.value : ''
+        });
+        verifyBtn.disabled = false;
+        if (aiStatusEl) {
+          aiStatusEl.textContent = res.ok ? res.message : `測試失敗：${res.error}`;
+          aiStatusEl.classList.toggle('success', res.ok);
+          aiStatusEl.classList.toggle('err', !res.ok);
+        }
+      });
+    }
+  }
+
   // the credit line on the start card and the summary (README.md, 授權)
   document.querySelectorAll('.credit').forEach(el => el.replaceChildren(`${CREDIT.text} · `,
     Object.assign(document.createElement('a'), { href: CREDIT.url, target: '_blank', rel: 'noopener', textContent: new URL(CREDIT.url).host })));
@@ -1814,7 +1982,7 @@ async function boot() {
   document.querySelectorAll('.pick [data-pgy]').forEach(b => b.addEventListener('click', () => {
     // the doctor needs a name: the handover, the calls and the summary use it
     if (!$('gName').value.trim()) {
-      startHint('請先輸入暱稱，才能開始值班。', true);
+      startHint('請先輸入稱呼或暱稱，才能開始值班。', true);
       $('gName').setAttribute('aria-invalid', 'true'); $('gName').focus(); return;
     }
     goSideways();
@@ -1823,6 +1991,12 @@ async function boot() {
     store.set(KEYS.name, S.nick);
     S.shift = document.querySelector('#gShift input:checked')?.value === 'hard' ? 'hard' : 'normal';
     store.set(KEYS.shift, S.shift);
+    if (providerEl) {
+      store.set(KEYS.provider, providerEl.value);
+      store.set(KEYS.key, keyEl ? keyEl.value.trim() : '');
+      store.set(KEYS.model, modelEl ? modelEl.value.trim() : '');
+      if (levelEl) store.set(KEYS.level, levelEl.value);
+    }
     const k = b.dataset.pgy;
     S.pgy = k;
     players.m.visible = k === 'm'; players.f.visible = k === 'f';

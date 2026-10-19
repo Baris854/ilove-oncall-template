@@ -522,3 +522,31 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 .credit a:hover { border-bottom-color: var(--g-teal); }
 .handover .credit { font-size: .66em; color: #a19a90; }
 .handover .credit a { color: #7a6f60; border-bottom-color: rgba(122, 111, 96, .4); }
+
+/* ---------- AI 服務設定與驗證 ---------- */
+.setup-group { display: flex; flex-direction: column; gap: .6em; }
+.sf-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6em; }
+.sf-title-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.btn-verify { padding: .22em .65em; font-size: .82em; font-weight: 700; color: #041f1a; background: var(--g-teal); border: none; border-radius: .4em; cursor: pointer; transition: opacity .2s, transform .1s; }
+.btn-verify:hover { opacity: .88; transform: translateY(-1px); }
+.btn-verify:active { transform: translateY(0); }
+.btn-verify:disabled { opacity: .45; cursor: not-allowed; }
+.key-note { font-size: .78em; color: var(--g-dim); margin-top: .25em; display: block; line-height: 1.4; }
+.sf-hint.success { color: #5bff8f; }
+.sf-hint.err { color: #ff7a80; }
+
+/* ---------- 床邊 AI 自然語言對話與醫囑快捷列 ---------- */
+.pc-order-box { display: flex; flex-direction: column; gap: .45em; padding: .55em .75em; background: rgba(5, 14, 22, .94); border: 1px solid rgba(69, 227, 204, .38); border-radius: .6em; box-shadow: 0 0 1.2em rgba(0, 0, 0, .45); flex: none; }
+.pc-order-form { width: 100%; margin: 0; }
+.pc-order-row { display: flex; gap: .5em; align-items: center; }
+.pc-order-label { flex: none; font-size: .82em; font-weight: 700; padding: .35em .65em; border-radius: .4em; background: rgba(69, 227, 204, .18); color: var(--g-teal); border: 1px solid rgba(69, 227, 204, .35); }
+.pc-order-input { flex: 1; min-width: 0; padding: .5em .75em; font-size: .95em; color: #fff; background: rgba(2, 6, 10, .85); border: 1px solid #233446; border-radius: .45em; outline: none; transition: border-color .2s, box-shadow .2s; }
+.pc-order-input:focus { border-color: var(--g-teal); box-shadow: 0 0 .6em rgba(69, 227, 204, .35); }
+.pc-order-send { flex: none; padding: .5em 1em; font-size: .9em; font-weight: 700; }
+.pc-quick-bar { display: flex; gap: .35em; align-items: center; flex-wrap: wrap; font-size: .82em; }
+.quick-lbl { color: var(--g-dim); font-size: .85em; }
+.pc-quick-btn { padding: .25em .55em; font-size: .85em; background: rgba(255, 255, 255, .05); border: 1px solid #1e2c39; border-radius: .35em; color: #c0d2e2; cursor: pointer; transition: all .15s; }
+.pc-quick-btn:hover { background: rgba(69, 227, 204, .15); border-color: var(--g-teal); color: #fff; }
+
+.pc-log .pending { opacity: .75; font-style: italic; animation: pulse-log 1.5s infinite; }
+@keyframes pulse-log { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }

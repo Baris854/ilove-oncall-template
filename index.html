@@ -64,6 +64,27 @@
           </header>
           <div class="pc-monitor" id="pcMonitor" aria-label="床邊監視器"></div>
           <div class="pc-log" id="pcLog" aria-live="polite"></div>
+          
+          <!-- AI 床邊自然語言醫囑對話框與快捷列 -->
+          <div class="pc-order-box" id="pcOrderBox">
+            <form class="pc-order-form" id="pcOrderForm">
+              <div class="pc-order-row">
+                <span class="pc-order-label">醫師醫囑</span>
+                <input class="pc-order-input" id="pcOrderInput" type="text" placeholder="自由輸入醫囑、向護理師問診、安排處置… (Enter 送出)" autocomplete="off">
+                <button class="btn go pc-order-send" id="pcOrderSend" type="submit">送出醫囑</button>
+              </div>
+            </form>
+            <div class="pc-quick-bar" id="pcQuickBar">
+              <span class="quick-lbl">快捷醫囑：</span>
+              <button type="button" class="btn pc-quick-btn" data-order="量生命徵象與血壓心跳">量生命徵象</button>
+              <button type="button" class="btn pc-quick-btn" data-order="立刻測指尖 DXT 血糖">測血糖</button>
+              <button type="button" class="btn pc-quick-btn" data-order="安排 12 導程心電圖 EKG">做心電圖</button>
+              <button type="button" class="btn pc-quick-btn" data-order="安排胸部 X 光 CXR">照胸片</button>
+              <button type="button" class="btn pc-quick-btn" data-order="給予鼻導管氧氣支持 3L/min">給氧氣</button>
+              <button type="button" class="btn pc-quick-btn" data-order="抽血送 CBC, DC, 電解質">抽血</button>
+            </div>
+          </div>
+
           <div class="pc-ask" id="pcAsk">
             <p id="pcQ"></p>
             <div class="pc-opts" id="pcOpts"></div>
@@ -202,8 +223,44 @@
             </dl>
           </div>
           <div class="rhs">
-            <label class="sf full"><span>暱稱（必填）</span><input id="gName" type="text" maxlength="40" autocomplete="off" placeholder="例如：小明" required></label>
-            <p class="sf-hint" id="gHint" hidden></p>
+            <div class="setup-group">
+              <div class="sf-row">
+                <label class="sf"><span>稱呼 / 暱稱（必填）</span><input id="gName" type="text" maxlength="40" autocomplete="off" placeholder="例如：R1 王小明" required></label>
+                <label class="sf"><span>職級</span>
+                  <select id="gLevel">
+                    <option value="clerk">實習醫學生</option>
+                    <option value="pgy" selected>PGY 醫師</option>
+                    <option value="im-r1">內科 R1 住院醫師</option>
+                    <option value="im-r2">內科 R2 住院醫師</option>
+                    <option value="im-r3">內科 R3 總醫師</option>
+                    <option value="other">其他 / 一般民眾</option>
+                  </select>
+                </label>
+              </div>
+              <div class="sf-row">
+                <label class="sf"><span>AI 模型服務</span>
+                  <select id="gProvider">
+                    <option value="github" selected>GitHub Models (免費推薦)</option>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="demo">離線 Demo (免 Key)</option>
+                  </select>
+                </label>
+                <label class="sf"><span>模型名稱</span>
+                  <input id="gModel" type="text" placeholder="預設: gpt-4o-mini" autocomplete="off">
+                </label>
+              </div>
+              <label class="sf full">
+                <span class="sf-title-row">
+                  <span>API Key / Token</span>
+                  <button type="button" class="btn-verify" id="btnVerifyAi">測試連線</button>
+                </span>
+                <input id="gApiKey" type="password" autocomplete="off" placeholder="輸入 GitHub Token (ghp_... 或 github_pat_...)">
+                <small class="key-note" id="gKeyNote">💡 使用 GitHub Personal Access Token，完全免費、免綁信用卡。</small>
+              </label>
+              <p class="sf-hint" id="gAiStatus" hidden></p>
+              <p class="sf-hint" id="gHint" hidden></p>
+            </div>
             <fieldset class="shift" id="gShift">
               <legend>今晚的班：</legend>
               <label><input type="radio" name="shift" value="normal" checked><b>普通班</b><small>精力消耗得較慢</small></label>
@@ -214,7 +271,7 @@
               <button type="button" data-pgy="m"><img src="assets/game/char/pgy_m_neutral.svg" alt=""><span>男醫師</span></button>
               <button type="button" data-pgy="f"><img src="assets/game/char/pgy_f_neutral.svg" alt=""><span>女醫師</span></button>
             </div>
-            <p id="gDisclaimer" class="warn-note">內容包含病人病危和死亡的情節。遊戲僅供衛教，不能取代就醫；遇到緊急狀況請打 119。</p>
+            <p id="gDisclaimer" class="warn-note">本遊戲由 AI 生成病房情境，僅供衛教與模擬練習，不能取代實體就醫與臨床指導。</p>
             <p class="credit"></p>
           </div>
         </div>
