@@ -25,119 +25,134 @@ createServer(async (req, res) => {
     const path = decodeURIComponent(url.pathname);
 
     // API 代理：解決瀏覽器 CORS 與直連問題
+    const GEMINI_SAFETY_SETTINGS = [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+    ];
+
     if (req.method === 'POST' && path === '/api/verify') {
       const buffers = [];
       for await (const chunk of req) buffers.push(chunk);
-      const { provider, apiKey, model } = JSON.parse(Buffer.concat(buffers).toString() || '{}');
+      const { provider, apiKey, model, customUrl, prompt } = JSON.parse(Buffer.concat(buffers).toString() || '{}');
       const key = (apiKey || '').trim();
+      const testPrompt = prompt || '請簡短回覆：「醫師，病房已就緒，隨時待命！」';
 
       if (provider === 'demo') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, message: '離線 Demo 模式就緒' }));
+        return res.end(JSON.stringify({ ok: true, reply: '離線 Demo 模式就緒' }));
       }
       if (!key) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: '請輸入 API Key 或 Token' }));
       }
 
-      if (provider === 'github') {
-        const targetModel = model || 'gpt-4o-mini';
-        const r = await fetch('https://models.github.ai/inference/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({ model: targetModel, messages: [{ role: 'user', content: 'OK' }], max_tokens: 5 })
-        });
-        if (!r.ok) {
-          const t = await r.text().catch(() => '');
-          res.writeHead(r.status, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: false, error: `GitHub Models 錯誤 (${r.status}): ${t.slice(0, 120)}` }));
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, message: `GitHub Models 連線成功！（模型：${targetModel}）` }));
-      }
-
-      if (provider === 'openai') {
-        const targetModel = model || 'gpt-4o-mini';
-        const r = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({ model: targetModel, messages: [{ role: 'user', content: 'OK' }], max_tokens: 5 })
-        });
-        if (!r.ok) {
-          const t = await r.text().catch(() => '');
-          res.writeHead(r.status, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: false, error: `OpenAI 錯誤 (${r.status}): ${t.slice(0, 120)}` }));
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, message: `OpenAI 連線成功！（模型：${targetModel}）` }));
-      }
-
       if (provider === 'gemini') {
         const targetModel = model || 'gemini-2.0-flash';
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: '回覆 OK' }] }] })
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: testPrompt }] }],
+            safetySettings: GEMINI_SAFETY_SETTINGS,
+            generationConfig: { temperature: 0.2, maxOutputTokens: 60 }
+          })
         });
+        const data = await r.json().catch(() => ({}));
         if (!r.ok) {
-          const t = await r.text().catch(() => '');
           res.writeHead(r.status, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: false, error: `Gemini 錯誤 (${r.status}): ${t.slice(0, 120)}` }));
+          return res.end(JSON.stringify({ ok: false, error: data.error?.message || `Gemini API 錯誤 (${r.status})` }));
+        }
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Gemini 未回傳文字內容，可能受到安全審查阻擋' }));
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, message: `Gemini 連線成功！（模型：${targetModel}）` }));
+        return res.end(JSON.stringify({ ok: true, reply: text }));
       }
 
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, error: '未知的服務商' }));
+      let endpoint = 'https://api.openai.com/v1/chat/completions';
+      if (provider === 'groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+      else if (provider === 'openrouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+      else if (provider === 'custom' && customUrl) endpoint = customUrl;
+
+      const targetModel = model || (provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini');
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ model: targetModel, messages: [{ role: 'user', content: testPrompt }], max_tokens: 60, temperature: 0.2 })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        res.writeHead(r.status, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: data.error?.message || `API 錯誤 (${r.status})` }));
+      }
+      const reply = data.choices?.[0]?.message?.content;
+      if (!reply) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: '模型未回傳文字回覆' }));
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: true, reply }));
     }
 
     if (req.method === 'POST' && path === '/api/chat') {
       const buffers = [];
       for await (const chunk of req) buffers.push(chunk);
-      const { provider, apiKey, model, messages } = JSON.parse(Buffer.concat(buffers).toString() || '{}');
+      const { provider, apiKey, model, customUrl, messages, systemPrompt, userPrompt } = JSON.parse(Buffer.concat(buffers).toString() || '{}');
       const key = (apiKey || '').trim();
-
-      if (provider === 'github') {
-        const r = await fetch('https://models.github.ai/inference/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({ model: model || 'gpt-4o-mini', messages, max_tokens: 200, temperature: 0.6 })
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error?.message || `GitHub Models 錯誤 (${r.status})`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ reply: data.choices?.[0]?.message?.content || '' }));
-      }
-
-      if (provider === 'openai') {
-        const r = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({ model: model || 'gpt-4o-mini', messages, max_tokens: 200, temperature: 0.6 })
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error?.message || `OpenAI 錯誤 (${r.status})`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ reply: data.choices?.[0]?.message?.content || '' }));
-      }
 
       if (provider === 'gemini') {
         const targetModel = model || 'gemini-2.0-flash';
-        const prompt = messages.map(m => `${m.role}: ${m.content}`).join('\n\n');
+        const fullPrompt = `${systemPrompt || ''}\n\n${userPrompt || (messages?.[messages.length - 1]?.content) || ''}`;
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            safetySettings: GEMINI_SAFETY_SETTINGS,
+            generationConfig: { temperature: 0.5, maxOutputTokens: 300 }
+          })
         });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error?.message || `Gemini 錯誤 (${r.status})`);
+        if (!r.ok) {
+          res.writeHead(r.status, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: data.error?.message || `Gemini 錯誤 (${r.status})` }));
+        }
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!reply) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Gemini 未回傳文字，可能受到安全審查阻擋' }));
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ reply: data.candidates?.[0]?.content?.parts?.[0]?.text || '' }));
+        return res.end(JSON.stringify({ reply }));
       }
 
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: '不支援的服務商' }));
+      let endpoint = 'https://api.openai.com/v1/chat/completions';
+      if (provider === 'groq') endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+      else if (provider === 'openrouter') endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+      else if (provider === 'custom' && customUrl) endpoint = customUrl;
+
+      const targetModel = model || (provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini');
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ model: targetModel, messages, max_tokens: 300, temperature: 0.6 })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        res.writeHead(r.status, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: data.error?.message || `API 錯誤 (${r.status})` }));
+      }
+      const reply = data.choices?.[0]?.message?.content || '';
+      if (!reply) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: '模型未回傳文字回覆' }));
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ reply }));
     }
 
     let file = normalize(join(ROOT, path));

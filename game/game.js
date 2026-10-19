@@ -1420,6 +1420,18 @@ async function boot() {
     place(player, ...SPOT.approach(BED[c.bed]), Math.PI);
     if (PC.id !== id || !PC.step) startPublicCase(id);
     $('pcBed').textContent = c.bed; $('pcWho').textContent = PCASE[id].who; $('pcSub').textContent = `護理師${c.nurse}在旁邊等你決定`;
+    const badge = $('pcAiBadge');
+    if (badge) {
+      const p = store.get(KEYS.provider) || 'gemini';
+      if (p === 'demo') {
+        badge.className = 'pc-ai-badge demo';
+        badge.textContent = '離線單機模式';
+      } else {
+        const pName = AI_DEFAULTS[p]?.name?.split(' ')[0] || p;
+        badge.className = 'pc-ai-badge live';
+        badge.textContent = `⚡ AI 護理師 (${pName})`;
+      }
+    }
     $('pcase').hidden = false;
     renderPublicCase();
     frame.focus();
@@ -1500,10 +1512,12 @@ async function boot() {
 
     try {
       const st = c.states[PC.state] || {};
+      const curProv = store.get(KEYS.provider) || 'gemini';
       const res = await askAiNurse({
-        provider: store.get(KEYS.provider) || 'github',
+        provider: curProv,
         apiKey: store.get(KEYS.key) || '',
         model: store.get(KEYS.model) || '',
+        customUrl: store.get(KEYS.customUrl) || '',
         caseInfo: { id: PC.id, name: c.name, bed: CASES[PC.id].bed, nurse: c.nurse, who: c.who, intro: c.intro, extra: c.extra },
         vitals: { hr: st.hr, bp: st.bp, spo2: st.spo2, extra: PC.extra, mind: st.mind },
         history: PC.aiHistory || [],
@@ -1516,6 +1530,9 @@ async function boot() {
       if (pIdx > -1) PC.log.splice(pIdx, 1);
 
       say('nurse', res.reply);
+      if (!res.isAi && curProv !== 'demo') {
+        toast(`⚠️ 注意：AI 連線未成功 (${res.apiError || '無回應'})，已使用本地備援回覆！`, 5);
+      }
       PC.aiHistory = PC.aiHistory || [];
       PC.aiHistory.push({ role: 'doctor', content: orderText }, { role: 'nurse', content: res.reply });
 
@@ -1914,7 +1931,8 @@ async function boot() {
     provider: 'oncall_provider',
     key: 'oncall_api_key',
     model: 'oncall_model',
-    level: 'oncall_level'
+    level: 'oncall_level',
+    customUrl: 'oncall_custom_url'
   };
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
@@ -1923,45 +1941,117 @@ async function boot() {
   $('gName').value = store.get(KEYS.name);
 
   const providerEl = $('gProvider'), keyEl = $('gApiKey'), modelEl = $('gModel'), levelEl = $('gLevel');
+  const customRowEl = $('gCustomRow'), customUrlEl = $('gCustomUrl');
   const verifyBtn = $('btnVerifyAi'), aiStatusEl = $('gAiStatus'), keyNoteEl = $('gKeyNote');
+  let aiVerified = false;
 
   if (providerEl) {
-    providerEl.value = store.get(KEYS.provider) || 'github';
+    let savedP = store.get(KEYS.provider) || 'gemini';
+    if (savedP === 'github') savedP = 'gemini'; // GitHub Models 已停用，自動轉至 Gemini
+    providerEl.value = savedP;
+
     const curP = providerEl.value;
     if (modelEl) modelEl.value = store.get(KEYS.model) || (AI_DEFAULTS[curP]?.model || '');
     if (keyEl) keyEl.value = store.get(KEYS.key) || '';
+    if (customUrlEl) customUrlEl.value = store.get(KEYS.customUrl) || '';
     if (levelEl) levelEl.value = store.get(KEYS.level) || 'pgy';
     if (keyNoteEl && AI_DEFAULTS[curP]) keyNoteEl.textContent = AI_DEFAULTS[curP].hint;
     if (keyEl && AI_DEFAULTS[curP]) keyEl.placeholder = AI_DEFAULTS[curP].placeholder;
+    if (customRowEl) customRowEl.hidden = (curP !== 'custom');
 
-    providerEl.addEventListener('change', () => {
+    const updateProviderState = () => {
       const p = providerEl.value;
       const def = AI_DEFAULTS[p];
+      if (customRowEl) customRowEl.hidden = (p !== 'custom');
       if (def) {
         if (modelEl) modelEl.value = def.model;
         if (keyEl) keyEl.placeholder = def.placeholder;
         if (keyNoteEl) keyNoteEl.textContent = def.hint;
       }
-    });
+      if (p === 'demo') {
+        aiVerified = true;
+        if (aiStatusEl) {
+          aiStatusEl.hidden = false;
+          aiStatusEl.className = 'ai-verify-panel info';
+          aiStatusEl.innerHTML = '<span>ℹ️ 離線 Demo 模式：使用本地單機規則庫（非真實 AI 生成，僅供試玩）。</span>';
+        }
+      } else {
+        aiVerified = false;
+        if (aiStatusEl) {
+          aiStatusEl.hidden = true;
+          aiStatusEl.innerHTML = '';
+        }
+      }
+    };
+
+    providerEl.addEventListener('change', updateProviderState);
+
+    const onKeyChanged = () => {
+      if (providerEl.value !== 'demo') {
+        aiVerified = false;
+        if (aiStatusEl && !aiStatusEl.hidden) {
+          aiStatusEl.hidden = true;
+          aiStatusEl.innerHTML = '';
+        }
+      }
+    };
+    keyEl?.addEventListener('input', onKeyChanged);
+    modelEl?.addEventListener('input', onKeyChanged);
+    customUrlEl?.addEventListener('input', onKeyChanged);
 
     if (verifyBtn) {
       verifyBtn.addEventListener('click', async () => {
+        const p = providerEl.value;
+        const key = keyEl ? keyEl.value.trim() : '';
+
+        if (p !== 'demo' && !key) {
+          if (aiStatusEl) {
+            aiStatusEl.hidden = false;
+            aiStatusEl.className = 'ai-verify-panel error';
+            aiStatusEl.innerHTML = '<b>❌ 連線測試失敗</b><p>請先填寫 API Key！若無 Key 請選擇「離線 Demo」。</p>';
+          }
+          keyEl?.focus();
+          return;
+        }
+
         verifyBtn.disabled = true;
+        verifyBtn.textContent = '連線測試中…';
         if (aiStatusEl) {
           aiStatusEl.hidden = false;
-          aiStatusEl.className = 'sf-hint';
-          aiStatusEl.textContent = '連線測試中…';
+          aiStatusEl.className = 'ai-verify-panel testing';
+          aiStatusEl.innerHTML = '<b>⏳ 正在與 AI 模型連線…</b><p>向護理師發送床邊就緒測試訊號中，請稍候…</p>';
         }
-        const res = await verifyAiConnection({
-          provider: providerEl.value,
-          apiKey: keyEl.value,
-          model: modelEl ? modelEl.value : ''
-        });
-        verifyBtn.disabled = false;
-        if (aiStatusEl) {
-          aiStatusEl.textContent = res.ok ? res.message : `測試失敗：${res.error}`;
-          aiStatusEl.classList.toggle('success', res.ok);
-          aiStatusEl.classList.toggle('err', !res.ok);
+
+        try {
+          const res = await verifyAiConnection({
+            provider: p,
+            apiKey: key,
+            model: modelEl ? modelEl.value.trim() : '',
+            customUrl: customUrlEl ? customUrlEl.value.trim() : ''
+          });
+
+          if (res.ok) {
+            aiVerified = true;
+            if (aiStatusEl) {
+              aiStatusEl.className = 'ai-verify-panel success';
+              aiStatusEl.innerHTML = `<b>🟢 連線成功！AI 護理師已就緒</b><p>${esc(res.message)}</p>`;
+            }
+          } else {
+            aiVerified = false;
+            if (aiStatusEl) {
+              aiStatusEl.className = 'ai-verify-panel error';
+              aiStatusEl.innerHTML = `<b>❌ AI 連線測試失敗</b><p>${esc(res.error || '未取得模型回應')}</p><small>建議檢查 API Key、額度，或至 aistudio.google.com 免費取得 Gemini Key。</small>`;
+            }
+          }
+        } catch (err) {
+          aiVerified = false;
+          if (aiStatusEl) {
+            aiStatusEl.className = 'ai-verify-panel error';
+            aiStatusEl.innerHTML = `<b>❌ 連線發生例外</b><p>${esc(err.message)}</p>`;
+          }
+        } finally {
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = '測試連線';
         }
       });
     }
@@ -1985,6 +2075,31 @@ async function boot() {
       startHint('請先輸入稱呼或暱稱，才能開始值班。', true);
       $('gName').setAttribute('aria-invalid', 'true'); $('gName').focus(); return;
     }
+
+    const curP = providerEl ? providerEl.value : 'demo';
+    const curKey = keyEl ? keyEl.value.trim() : '';
+
+    if (curP !== 'demo') {
+      if (!curKey) {
+        startHint('⚠️ 尚未填寫 API Key！請填寫並點擊「測試連線」，或在選單選擇「離線 Demo」。', true);
+        keyEl?.focus();
+        return;
+      }
+      if (!aiVerified) {
+        const proceed = confirm(
+          '【⚠️ 尚未確認 AI API 連線】\n\n' +
+          '您尚未點擊「測試連線」驗證 API 是否連通。\n' +
+          '若現在直接進入遊戲，一旦 API 密鑰有誤或受到限制，護理師將無法進行臨床 AI 思考，只能退回離線罐頭回應！\n\n' +
+          '建議您先點擊「取消」，再按「測試連線」確認綠燈。\n\n' +
+          '是否仍要略過連線檢查直接進入值班？'
+        );
+        if (!proceed) {
+          verifyBtn?.focus();
+          return;
+        }
+      }
+    }
+
     goSideways();
     document.querySelectorAll('.pick button').forEach(x => { x.disabled = true; });
     S.nick = $('gName').value.trim().slice(0, 40);
@@ -1995,6 +2110,7 @@ async function boot() {
       store.set(KEYS.provider, providerEl.value);
       store.set(KEYS.key, keyEl ? keyEl.value.trim() : '');
       store.set(KEYS.model, modelEl ? modelEl.value.trim() : '');
+      if (customUrlEl) store.set(KEYS.customUrl, customUrlEl.value.trim());
       if (levelEl) store.set(KEYS.level, levelEl.value);
     }
     const k = b.dataset.pgy;

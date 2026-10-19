@@ -59,7 +59,7 @@
         <figure class="bs-portrait"><img id="pcNurse" src="assets/game/char/nurse_worried.svg" alt="護理師"></figure>
         <section class="bs-panel" aria-label="床邊">
           <header class="bs-head">
-            <div><span class="bs-bed red" id="pcBed"></span><b id="pcWho"></b><small id="pcSub"></small></div>
+            <div><span class="bs-bed red" id="pcBed"></span><b id="pcWho"></b><small id="pcSub"></small><span class="pc-ai-badge" id="pcAiBadge"></span></div>
             <div class="bs-actions"><button class="btn go" id="pcLab" type="button">抽血檢查</button><button class="btn" id="pcPause" type="button">暫停</button></div>
           </header>
           <div class="pc-monitor" id="pcMonitor" aria-label="床邊監視器"></div>
@@ -240,14 +240,21 @@
               <div class="sf-row">
                 <label class="sf"><span>AI 模型服務</span>
                   <select id="gProvider">
-                    <option value="github" selected>GitHub Models (免費推薦)</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="demo">離線 Demo (免 Key)</option>
+                    <option value="gemini" selected>Google Gemini (免費推薦)</option>
+                    <option value="groq">Groq (極速免費 · 免信用卡)</option>
+                    <option value="openrouter">OpenRouter (免費開放模型)</option>
+                    <option value="openai">OpenAI (官方 API)</option>
+                    <option value="custom">自訂 OpenAI 相容服務 / 本地</option>
+                    <option value="demo">離線 Demo (純單機規則)</option>
                   </select>
                 </label>
                 <label class="sf"><span>模型名稱</span>
-                  <input id="gModel" type="text" placeholder="預設: gpt-4o-mini" autocomplete="off">
+                  <input id="gModel" type="text" placeholder="預設: gemini-2.0-flash" autocomplete="off">
+                </label>
+              </div>
+              <div class="sf-row" id="gCustomRow" hidden>
+                <label class="sf full"><span>自訂 API Endpoint URL</span>
+                  <input id="gCustomUrl" type="text" placeholder="https://api.openai.com/v1/chat/completions" autocomplete="off">
                 </label>
               </div>
               <label class="sf full">
@@ -255,10 +262,10 @@
                   <span>API Key / Token</span>
                   <button type="button" class="btn-verify" id="btnVerifyAi">測試連線</button>
                 </span>
-                <input id="gApiKey" type="password" autocomplete="off" placeholder="輸入 GitHub Token (ghp_... 或 github_pat_...)">
-                <small class="key-note" id="gKeyNote">💡 使用 GitHub Personal Access Token，完全免費、免綁信用卡。</small>
+                <input id="gApiKey" type="password" autocomplete="off" placeholder="輸入 Google AI Studio Key (AIza...)">
+                <small class="key-note" id="gKeyNote">💡 完全免費！至 aistudio.google.com 產生 Key，已解除醫療詞彙安全審查誤擋。</small>
               </label>
-              <p class="sf-hint" id="gAiStatus" hidden></p>
+              <div class="ai-verify-panel" id="gAiStatus" hidden></div>
               <p class="sf-hint" id="gHint" hidden></p>
             </div>
             <fieldset class="shift" id="gShift">
