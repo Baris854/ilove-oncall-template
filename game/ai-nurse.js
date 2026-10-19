@@ -5,36 +5,61 @@ export const AI_DEFAULTS = {
   gemini: {
     name: 'Google Gemini (免費推薦)',
     model: 'gemini-2.0-flash',
+    models: [
+      { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash (推薦首選 · 平衡敏捷)' },
+      { id: 'gemini-2.0-flash-lite', name: 'gemini-2.0-flash-lite (最省額度 · 極速)' },
+      { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (穩定經典版)' },
+      { id: 'gemini-1.5-pro', name: 'gemini-1.5-pro (深度臨床邏輯 · 推理最強)' }
+    ],
     placeholder: '輸入 Google AI Studio Key (AIza...)',
     hint: '💡 完全免費！至 aistudio.google.com 產生 Key，已解除醫療詞彙安全審查誤擋。'
   },
   groq: {
     name: 'Groq (極速免費 · 免信用卡)',
     model: 'llama-3.3-70b-versatile',
+    models: [
+      { id: 'llama-3.3-70b-versatile', name: 'llama-3.3-70b-versatile (極速 70B · 推薦)' },
+      { id: 'llama-3.1-8b-instant', name: 'llama-3.1-8b-instant (超輕量極速)' }
+    ],
     placeholder: '輸入 Groq API Key (gsk_...)',
     hint: '💡 完全免費、不擋醫學名詞！至 console.groq.com 註冊即可免費取得 Key。'
   },
   openrouter: {
     name: 'OpenRouter (免費開放模型)',
     model: 'meta-llama/llama-3.3-70b-instruct:free',
+    models: [
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'meta-llama/llama-3.3-70b-instruct:free' },
+      { id: 'google/gemini-2.0-flash-exp:free', name: 'google/gemini-2.0-flash-exp:free' }
+    ],
     placeholder: '輸入 OpenRouter Key (sk-or-...)',
     hint: '💡 支援 free 系列免費模型，至 openrouter.ai 取得 Key。'
   },
   openai: {
     name: 'OpenAI (官方 API)',
     model: 'gpt-4o-mini',
+    models: [
+      { id: 'gpt-4o-mini', name: 'gpt-4o-mini (輕量經濟)' },
+      { id: 'gpt-4o', name: 'gpt-4o (全能旗艦)' }
+    ],
     placeholder: '輸入 OpenAI API Key (sk-...)',
     hint: '💡 使用官方 OpenAI 帳號額度。'
   },
   custom: {
-    name: '自訂 OpenAI 相容服務 / Ollama',
+    name: '自訂 OpenAI 相容服務 / 本地',
     model: 'gpt-4o-mini',
+    models: [
+      { id: 'gpt-4o-mini', name: 'gpt-4o-mini' },
+      { id: 'custom', name: '自訂模型' }
+    ],
     placeholder: '輸入 API Key 或 Token',
     hint: '💡 可自訂 API 端點 URL（如本機 Ollama、vLLM 或第三方代理）。'
   },
   demo: {
-    name: '離線 Demo (不用 Key)',
+    name: '離線 Demo (純單機規則)',
     model: 'local-rules',
+    models: [
+      { id: 'local-rules', name: '本機 Pocket Medicine 內建規則庫' }
+    ],
     placeholder: '免輸入 Key，以本機臨床知識庫應對',
     hint: '💡 完全離線，使用本地劇本與規則庫（非真實 AI 生成）。'
   }
@@ -184,24 +209,36 @@ export async function askAiNurse({
     };
   }
 
-  // 2. 構建高保真臨床思考 Prompt
-  const systemPrompt = `你是一位台灣醫院內科病房的夜班資深護理師「${nurseName}」。
+  // 2. 構建以 Pocket Medicine 9th Edition 為藍本的高保真臨床思考 Prompt
+  const systemPrompt = `你是一位台灣醫院內科病房夜班的資深專業護理師「${nurseName}」。
 當前床邊臨床情境：
 - 床位與病患：${patientDesc}
 - 病患主訴與背景：${caseInfo.intro || ''}
 - 當前監視器數據：${vitalsDesc}
-- 正在床邊下達醫囑的值班醫師：${doctorName}（職級：${doctorLevel}）
+- 床邊值班醫師：${doctorName}（職級：${doctorLevel}）
 
-你的職責與臨床思考規則：
-1. 【語氣與風格】以「${nurseName}：「開頭。口吻口語、沉著俐落、充滿現場急迫感，使用台灣臨床醫護用語（如：on IV、push D50、抽 ABG、排床邊 CXR、做 EKG、叫神經科會診、壓胸 CPR 等）。
-2. 【醫學邏輯判斷】
-   - 若處置恰當（如低血糖昏迷給予高濃度葡萄糖 D50W、疑似中風急排 non-contrast brain CT、呼吸窘迫給氧、摸不到脈搏立即壓胸）：回覆已迅速執行處置，並描述病人生理反應好轉、意識改善與數據提升。
-   - 若處置危險或延誤（如低血糖躁動打鎮靜劑、缺血性中風盲目積極降血壓、活動性吐血給抗凝血劑）：提出專業警惕或描述病人情況惡化。
+【Pocket Medicine 9th 臨床指引搶救核心】：
+1. 低血糖 (phypo): 測指尖血糖 -> 意識不清立即 IV push D50W (高濃度葡萄糖) -> 甦醒後進食、停用降血糖藥。
+2. 急性腦中風 (pstroke): FAST評估、確認最後正常時間 (LKW) -> 測血糖 -> 急照無顯影腦部電腦斷層 (Non-contrast Head CT) -> 評估血栓溶解劑 (rtPA) -> 轉 ICU。切勿盲目積極降血壓。
+3. 急性心肌梗塞 (pacs): 10分鐘內做 12 導程 EKG + 給氧 -> 嚼服 Aspirin (160-325mg) + 舌下含 NTG (血壓許可) -> 急驗 Troponin -> 啟動心導管室 (Code STEMI) 進行冠脈介入治療 -> 轉 CCU。
+4. 致命性高血鉀 (phyperk): 心電圖見寬 QRS/高尖 T 波 -> 立即 IV Calcium gluconate (10mL) 穩定細胞膜 -> IV RI 10U + D50W 2支 (促鉀入細胞) -> 吸入 Albuterol -> 聯繫腎臟科安排急診血液透析 (HD)。
+5. 消化道大出血 (pgib): 2條大口徑 IV (16-18G) 快速輸液復甦 -> 送檢備紅血球 (PRBC) -> 靜脈高劑量 PPI -> 若為肝硬化靜脈曲張給 Octreotide 與預防性 Ceftriaxone -> 安排急診胃鏡 (EGD) 止血。
+6. 敗血性休克 (psepsis): Sepsis 1-hour bundle: 給抗生素前抽兩套血培養 (Blood CS x 2) -> 1小時內給廣效抗生素 (Pip-Tazo/Cefepime) -> 30 mL/kg 快速輸液 -> MAP < 65 立即上 Norepinephrine 升壓劑 -> 抽 Lactate 追蹤。
+
+【臨床決策與自由醫囑結案規則】：
+1. 語氣口吻：以「${nurseName}：「開頭。使用台灣醫院醫護用語（如：on IV、push D50、做 EKG、抽 ABG、叫心導管室、轉加護病房等）。本文約 40～90 字。
+2. 【動態臨床結案】：
+   - 當值班醫師的自由醫囑切中上述 Pocket Medicine 急症搶救核心，或醫師交代處置完畢交班且重要搶救已落實時：
+     * 護理師回覆已確實執行醫囑，並具體描述病患生理數據改善、意識回穩、脫離立即生命危險。
+     * 必須在最末尾標籤行輸出：[STATUS: cured] [OUTCOME: stable]（若轉加護病房可標 [OUTCOME: icu]）。
+     * 必須附帶臨床評析：[FEEDBACK: 簡短一句總結醫師本次處置優秀之處，引用 Pocket Medicine 9th 臨床要點（約 20-40 字）]。
+     * 同步更新好轉的數值：[HR: 數值] [BP: 收縮壓/舒張壓] [SPO2: 數值] [EXTRA: 數值或描述] [MIND: 意識描述]。
+   - 若處置危險或延誤（如中風盲目積極降血壓、活動性吐血給口服藥）：提出專業警惕或描述病人情況惡化，標記 [STATUS: warn] 或 [STATUS: bad]。
    - 若醫師是問診、查體或安排檢查（量血壓、測血糖、做心電圖、照胸片、抽血）：回覆客觀的臨床發現。
-3. 【狀態連動標籤】請在回覆的最末尾另起一行，輸出狀態連動標籤（供床邊監視器即時同步，不要輸出在對話引號內）：
-   格式：[STATUS: normal|warn|bad|arrest|cured] [HR: 數字] [BP: 收縮壓/舒張壓] [SPO2: 數字] [EXTRA: 數值或描述] [MIND: 意識描述]
-   （沒有改變的指標可以省略標籤）
-4. 【字數精簡】回覆本文（不含最後一行標籤）約 40～90 字，緊湊逼真。`;
+   - 若醫師表示「處置完畢交班」但有嚴重致命遺漏（例如高血鉀未給鈣劑、心肌梗塞未做 EKG 與給 Aspirin、大出血未給輸液）：
+     護理師應急迫提出臨床提醒，不可直接標記 cured。
+3. 標籤格式：請在回覆最末尾另起一行輸出：
+   [STATUS: cured|stable|warn|bad|arrest] [OUTCOME: stable|icu] [HR: 數字] [BP: 收縮壓/舒張壓] [SPO2: 數字] [EXTRA: 數值或描述] [MIND: 意識描述] [FEEDBACK: 臨床講評]`;
 
   // 構建對話歷史
   const messages = [{ role: 'system', content: systemPrompt }];
@@ -331,13 +368,29 @@ function parseAiOutput(rawText, nurseName, caseInfo) {
   const vitalsUpdate = {};
   let action = null;
   let nextStep = null;
+  let cured = false;
+  let outcome = 'stable';
+  let feedback = '';
+
+  // 提取 [FEEDBACK: ...]
+  const feedbackMatch = text.match(/\[FEEDBACK:\s*([^\]]+)\]/i);
+  if (feedbackMatch) {
+    feedback = feedbackMatch[1].trim();
+  }
+
+  // 提取 [OUTCOME: ...]
+  const outcomeMatch = text.match(/\[OUTCOME:\s*(\w+)\]/i);
+  if (outcomeMatch) {
+    outcome = outcomeMatch[1].toLowerCase();
+  }
 
   // 提取 [STATUS: ...] [HR: ...] [BP: ...] [SPO2: ...] [EXTRA: ...] [MIND: ...]
   const statusMatch = text.match(/\[STATUS:\s*(\w+)\]/i);
   if (statusMatch) {
     const st = statusMatch[1].toLowerCase();
-    if (st === 'cured' || st === 'improved') {
-      action = caseInfo.id === 'hypo' ? 'cure_hypo' : caseInfo.id === 'stroke' ? 'cure_stroke' : 'cure';
+    if (st === 'cured' || st === 'stable' || st === 'improved' || st === 'safe') {
+      action = 'cured';
+      cured = true;
       nextStep = 'done';
     } else if (st === 'arrest') {
       action = 'cpr';
@@ -366,7 +419,7 @@ function parseAiOutput(rawText, nurseName, caseInfo) {
   if (mindMatch) vitalsUpdate.mind = mindMatch[1].trim();
 
   // 清除末尾標籤，保留口語文本
-  text = text.replace(/\[(STATUS|HR|BP|SPO2|EXTRA|MIND):[^\]]*\]/gi, '').trim();
+  text = text.replace(/\[(STATUS|OUTCOME|HR|BP|SPO2|EXTRA|MIND|FEEDBACK):[^\]]*\]/gi, '').trim();
   text = text.replace(/^.*?護理師\s*[:：]\s*/, '').replace(/^[「『]/, '').replace(/[」』]$/, '').trim();
 
   // 檢查是否有特殊臨床行為（補足 AI 未標籤時的情境）
@@ -374,12 +427,9 @@ function parseAiOutput(rawText, nurseName, caseInfo) {
   if (!action) {
     if (/(抽血|cbc|生化|檢驗報告)/i.test(lowText)) action = 'draw_lab';
     else if (/(壓胸|cpr|除顫|電擊)/i.test(lowText)) action = 'cpr';
-    else if (caseInfo.id === 'hypo' && /(d50|葡萄糖|糖水|血糖回升|意識恢復)/i.test(lowText)) {
-      action = 'cure_hypo';
-      nextStep = 'done';
-      if (!vitalsUpdate.extra) vitalsUpdate.extra = 118;
-    } else if (caseInfo.id === 'stroke' && /(電腦斷層|brain ct|ct室|會診神經)/i.test(lowText)) {
-      action = 'cure_stroke';
+    else if (/(脫離危險|穩住了|好轉|恢復清醒|回升|安全範圍|血管打通|止血成功|洗腎順利)/i.test(lowText)) {
+      action = 'cured';
+      cured = true;
       nextStep = 'done';
     }
   }
@@ -388,16 +438,19 @@ function parseAiOutput(rawText, nurseName, caseInfo) {
     reply: `${nurseName}：「${text}」`,
     action,
     vitalsUpdate,
-    nextStep
+    nextStep,
+    cured,
+    outcome,
+    feedback
   };
 }
 
 /**
- * 離線臨床保底規則庫（僅在選 Demo 模式或完全斷網時使用）
+ * 離線臨床保底規則庫（支援 Pocket Medicine 9th 藍本之六大急症）
  */
 function localClinicalRuleFallback(t, c, v) {
   const nurse = c.nurse || '護理師';
-  const cid = c.id;
+  const cid = (c.id || '').replace(/^p/, '');
 
   if (/(量|量測|測|看|確認).{0,6}(生命徵象|vital|血壓|心跳|血氧|bp|hr|spo2)/i.test(t)) {
     const bpStr = v.bp ? `${v.bp[0]}/${v.bp[1]} mmHg` : '量不到';
@@ -422,8 +475,18 @@ function localClinicalRuleFallback(t, c, v) {
   }
 
   if (/(心電圖|ekg|ecg|12\s*lead)/i.test(t)) {
-    return { reply: `${nurse}：「12 導程心電圖已完成！圖形已輸出貼在床尾病歷夾，請醫師過目判讀。」`, action: 'ekg' };
+    let ekgFinding = '12 導程心電圖已完成！圖形已輸出貼在床尾病歷夾。';
+    let extraVal = undefined;
+    if (cid === 'acs') {
+      ekgFinding = '12 導程心電圖已完成：V1–V4 導程 ST 段明顯抬高 (STEMI)！怡君：「前壁 ST 抬得好高，是急性心肌梗塞！」';
+      extraVal = 'V1–V4 ST 抬高 (STEMI)';
+    } else if (cid === 'hyperk') {
+      ekgFinding = '12 導程心電圖：T 波非常尖高 (Peaked T wave)、QRS 波變寬！小雯：「高血鉀心電圖很危險，隨時會心室顫動！」';
+      extraVal = '高尖T波、QRS增寬';
+    }
+    return { reply: `${nurse}：「${ekgFinding}」`, action: 'ekg', vitalsUpdate: extraVal ? { extra: extraVal } : {} };
   }
+
   if (/(胸片|cxr|胸部\s*x\s*光|x\s*光)/i.test(t)) {
     return { reply: `${nurse}：「已經聯絡放射科推床邊 CXR 機台過來照，照好會立刻上傳 PACS 系統！」`, action: 'cxr' };
   }
@@ -434,12 +497,16 @@ function localClinicalRuleFallback(t, c, v) {
     return { reply: `${nurse}：「病人摸不到脈搏！立刻開始壓胸 CPR，我去推急救車和 AED！」`, action: 'cpr' };
   }
 
+  // 1. 低血糖
   if (cid === 'hypo') {
     if (/(d50|d50w|葡萄糖|高濃度葡萄糖|給糖|推糖|推d50|50%\s*glucose|glucagon|升糖素)/i.test(t)) {
       return {
         reply: `${nurse}：「收到！立刻靜脈推注 D50W 2 支（40 mL）！……推完了，病人眼睛眨了眨，意識慢慢恢復清醒，剛剛複測血糖上升到 118 mg/dL！」`,
-        action: 'cure_hypo',
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
         vitalsUpdate: { extra: 118, mind: '清醒，能回答名字' },
+        feedback: '低血糖昏迷立即靜脈給予 D50W，病患迅速清醒，落實 Pocket Medicine 臨床準則！',
         nextStep: 'done'
       };
     }
@@ -452,21 +519,95 @@ function localClinicalRuleFallback(t, c, v) {
     }
   }
 
+  // 2. 中風
   if (cid === 'stroke') {
-    if (/(ct|電腦斷層|brain\s*ct|腦部\s*ct|急診ct|排除出血)/i.test(t)) {
+    if (/(ct|電腦斷層|brain\s*ct|腦部\s*ct|急診ct|排除出血|rt-?pa|血栓溶解)/i.test(t)) {
       return {
-        reply: `${nurse}：「馬上聯絡 CT 室安排 non-contrast brain CT！同時已經通知神經科值班總值待命評估 rt-PA！」`,
-        action: 'cure_stroke',
+        reply: `${nurse}：「馬上聯絡 CT 室安排 non-contrast brain CT！同時已經通知神經科值班總值待命評估 rt-PA，陳阿嬤病情已迅速進入急診綠色通道！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
         vitalsUpdate: { mind: '右上肢無力，意識清楚' },
+        feedback: '急性中風黃金期內排除禁忌並急照 CT 評估血栓溶解劑，掌握 Pocket Medicine 搶救時間！',
         nextStep: 'done'
       };
     }
     if (/(降壓|降血壓|labetalol|nicardipine|hydralazine|降壓藥|把血壓打下來)/i.test(t)) {
       return { reply: `${nurse}：「醫師，目前血壓雖然 178/96，但缺血性中風盲目強力降壓會降低腦部灌流！建議先做 CT 排除出血再決定！」`, action: 'warn' };
     }
-    if (/(fast|神經學|查體|瞳孔|左右|手無力|笑一笑|nihss)/i.test(t)) {
-      return { reply: `${nurse}：「神經學檢查：右手肌力只有 2 分抬不起來，左側 5 分正常，臉部右側法令紋稍平，口齒含糊不清。」`, action: 'exam' };
+  }
+
+  // 3. 急性心肌梗塞
+  if (cid === 'acs') {
+    if (/(aspirin|阿斯匹靈|stemi|心導管|pci|ntg|硝化甘油|導管室|code\s*stemi)/i.test(t)) {
+      return {
+        reply: `${nurse}：「立刻嚼服 Aspirin 300mg 並含服 NTG！心導管室值班小組已全面啟動待命中，李伯伯胸痛減輕，準備直接推入手術室！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 84, bp: [120, 74], ekg: 'ST段回降，心肌再灌流中', mind: '清醒，胸痛大幅緩解' },
+        feedback: 'STEMI 即刻給予 Aspirin 啟動 Code STEMI 緊急再灌流，徹底符合 Pocket Medicine Cardiology 指引！',
+        nextStep: 'done'
+      };
     }
+  }
+
+  // 4. 致命性高血鉀
+  if (cid === 'hyperk') {
+    if (/(calcium|鈣|葡萄糖酸鈣|氯化鈣|ri|insulin|胰島素|d50|洗腎|透析|hemodialysis|hd)/i.test(t)) {
+      return {
+        reply: `${nurse}：「收到！立即靜脈慢推 Calcium gluconate 1 支，並給予 Regular Insulin 10U + D50W 2 支！心電圖 QRS 寬度立刻明顯收窄，透析室護理師已備妥機台！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 78, bp: [130, 80], rhythm: '竇性心律，T波回降', mind: '清醒，四肢麻木減輕' },
+        feedback: '高血鉀緊急給予鈣劑穩定細胞膜，併用胰島素葡萄糖促鉀內流並安排透析，精準落實 Pocket Medicine 降鉀三部曲！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 5. 消化道大出血
+  if (cid === 'gib') {
+    if (/(iv|靜脈|輸液|生理食鹽水|備血|輸血|prbc|octreotide|ppi|胃鏡|egd)/i.test(t)) {
+      return {
+        reply: `${nurse}：「打上兩條 18G 大口徑 IV 全速輸液，加壓送上兩袋紅血球 PRBC！靜脈注射 Octreotide 與高劑量 PPI 後嘔血已止，急診胃鏡醫師已就位！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 88, bp: [110, 68], mind: '清醒，休克症狀緩解' },
+        feedback: '消化道大出血落實大口徑輸液復甦、限制性輸血、PPI/Octreotide 降門脈壓並急診胃鏡，符合 Pocket Medicine 止血準則！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 6. 敗血性休克
+  if (cid === 'sepsis') {
+    if (/(培養|blood\s*cs|血培養|抗生素|pip-tazo|cefepime|輸液|30\s*ml|升壓|norepinephrine|levophed|lactate)/i.test(t)) {
+      return {
+        reply: `${nurse}：「已迅速抽妥兩套血液培養！30 mL/kg 生理食鹽水快速灌注，廣效抗生素已注射，Norepinephrine 升壓劑上線後 MAP 回升至 70 mmHg，林奶奶意識恢復！」`,
+        action: 'cured',
+        cured: true,
+        outcome: 'stable',
+        vitalsUpdate: { hr: 94, bp: [108, 66], mind: '清醒，對答配合' },
+        feedback: '落實 Sepsis 1-Hour Bundle：給藥前抽血培養、1小時內給抗生素、積極輸液並以 Norepinephrine 支持灌流，教科書級處置！',
+        nextStep: 'done'
+      };
+    }
+  }
+
+  // 萬用結案交班命令（若醫師覺得處理得差不多了，下達交班或回值班室指令）
+  if (/(處置完成|交班|穩住了|回值班室|轉加護|送icu|收入加護|交代觀察)/i.test(t)) {
+    return {
+      reply: `${nurse}：「好的醫師！病患目前生命徵象已維持穩定，後續各項監測我會每小時密切追蹤，您先回值班室休息，辛苦了！」`,
+      action: 'cured',
+      cured: true,
+      outcome: 'stable',
+      vitalsUpdate: { hr: 80, bp: [120, 76], spo2: 97, mind: '穩定安睡中' },
+      feedback: '妥善完成急症處置與臨床交班安排，回值班室儲備體力！',
+      nextStep: 'done'
+    };
   }
 
   return {

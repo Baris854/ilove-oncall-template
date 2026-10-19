@@ -560,3 +560,16 @@ body.at-bedside .hud-right, body.at-bedside .hud-calls, body.at-bedside .goal { 
 
 .pc-log .pending { opacity: .75; font-style: italic; animation: pulse-log 1.5s infinite; }
 @keyframes pulse-log { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+
+.pc-quick-btn.finish { background: rgba(91, 255, 143, .12); border-color: rgba(91, 255, 143, .4); color: #7aff9e; font-weight: 700; margin-left: auto; }
+.pc-quick-btn.finish:hover { background: rgba(91, 255, 143, .25); color: #fff; }
+
+.pc-done-bar { display: flex; flex-direction: column; gap: .7em; padding: .85em 1.1em; background: linear-gradient(135deg, rgba(8, 38, 28, .94), rgba(4, 18, 25, .96)); border: 1.5px solid #5bff8f; border-radius: .7em; box-shadow: 0 0 1.5em rgba(91, 255, 143, .25); animation: popIn .25s ease-out; }
+.pc-done-info { font-size: .95em; line-height: 1.5; color: #e1fff0; }
+.pc-done-info h4 { margin: 0 0 .3em; color: #5bff8f; font-size: 1.08em; display: flex; align-items: center; gap: .4em; }
+.pc-done-info p { margin: 0; color: #bdfae0; }
+.pc-done-btn { align-self: flex-start; padding: .55em 1.3em; font-size: .98em; font-weight: 700; background: #5bff8f; color: #021a11; border: none; border-radius: .45em; cursor: pointer; transition: all .15s; }
+.pc-done-btn:hover { background: #85ffab; transform: translateY(-1px); box-shadow: 0 0 1em rgba(91, 255, 143, .5); }
+
+.pc-ask-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .4em; }
+.pc-hint-badge { font-size: .78em; color: var(--g-teal); background: rgba(69, 227, 204, .08); padding: .2em .6em; border-radius: .4em; border: 1px solid rgba(69, 227, 204, .2); }

@@ -1472,15 +1472,27 @@ async function boot() {
     $('pcMonitor').innerHTML = monitorHtml();
     $('pcLog').innerHTML = PC.log.map(l => `<p class="${l.cls}">${esc(l.text)}</p>`).join('');
     $('pcLog').scrollTop = $('pcLog').scrollHeight;
-    $('pcCpr').hidden = !PC.cpr; $('pcAsk').hidden = !!PC.cpr;
-    if ($('pcOrderBox')) $('pcOrderBox').hidden = !!PC.cpr || PC.done;
+    $('pcCpr').hidden = !PC.cpr;
     publicLabButton();
     if (PC.cpr) return;
+
+    const doneBar = $('pcDoneBar'), doneInfo = $('pcDoneInfo');
     if (PC.done) {
-      $('pcQ').textContent = `${c.results[PC.outcome]}。`;
-      $('pcOpts').innerHTML = '<button class="btn go pc-end" type="button" data-end="back">回去繼續值班</button>';
+      if ($('pcOrderBox')) $('pcOrderBox').hidden = true;
+      if ($('pcAsk')) $('pcAsk').hidden = true;
+      if (doneBar) {
+        doneBar.hidden = false;
+        if (doneInfo) {
+          const outcomeText = c.results[PC.outcome] || '本床病人已穩住';
+          doneInfo.innerHTML = `<h4>✅ 臨床處置完成：${esc(outcomeText)}</h4><p>依據 Pocket Medicine 臨床指引完成搶救處置，生命徵象已脫離立即危險，你可以結束這床並返回值班室。</p>`;
+        }
+      }
       return;
     }
+    if (doneBar) doneBar.hidden = true;
+    if ($('pcOrderBox')) $('pcOrderBox').hidden = false;
+    if ($('pcAsk')) $('pcAsk').hidden = false;
+
     const step = c.steps[PC.step];
     $('pcQ').textContent = (step.askBy?.[PC.state] || ([c.warn.state, c.late].includes(PC.state) && step.askWarn) || step.ask).replace('{sugar}', PC.extra ?? '');
     // the data lists the best answer first; each new question deals its choices in a fresh random
@@ -1536,23 +1548,28 @@ async function boot() {
       PC.aiHistory = PC.aiHistory || [];
       PC.aiHistory.push({ role: 'doctor', content: orderText }, { role: 'nurse', content: res.reply });
 
-      // 觸發臨床狀態變更
+      // 觸發臨床狀態變更與動態結案
       if (res.action === 'draw_lab') {
         publicDraw(S.t);
         labsArrive();
       } else if (res.action === 'cpr') {
         startCpr();
         return;
-      } else if (res.action === 'cure_hypo' && c.id === 'hypo') {
-        PC.extra = 118;
-        PC.state = 'safe';
-        PC.done = true; PC.outcome = 'best'; S.outcome[PC.id] = 'best';
-        resolve(PC.id, true); $('pcNurse').src = IMG('nurse_thankful');
-        plog(c.results.best, 'best');
-      } else if (res.action === 'cure_stroke' && c.id === 'stroke') {
-        PC.done = true; PC.outcome = 'best'; S.outcome[PC.id] = 'best';
-        resolve(PC.id, true); $('pcNurse').src = IMG('nurse_thankful');
-        plog(c.results.best, 'best');
+      } else if (res.cured || res.action === 'cured' || res.action === 'cure_hypo' || res.action === 'cure_stroke') {
+        const outcomeKey = (res.outcome && c.results[res.outcome]) ? res.outcome : (c.results.stable ? 'stable' : Object.keys(c.results)[0]);
+        PC.done = true;
+        PC.outcome = outcomeKey;
+        S.outcome[PC.id] = outcomeKey;
+        if (c.states.safe) PC.state = 'safe';
+        else if (c.states.stable) PC.state = 'stable';
+        else if (c.states.awake) PC.state = 'awake';
+        else if (c.states.treated) PC.state = 'treated';
+        resolve(PC.id, true);
+        $('pcNurse').src = IMG('nurse_thankful');
+        plog(`【處置成功】${c.results[outcomeKey]}。`, 'best');
+        if (res.feedback) {
+          plog(`📖 Pocket Medicine 臨床評析：${res.feedback}`, 'mind');
+        }
       } else if (res.action === 'worsen') {
         PC.danger += 2;
         if (PC.danger >= 5) { publicArrest(); return; }
@@ -1577,6 +1594,10 @@ async function boot() {
                  (opt.id === 'sugar' && /血糖|dxt|sugar/i.test(normOrder)) ||
                  (opt.id === 'd50' && /d50|葡萄糖|糖水/i.test(normOrder)) ||
                  (opt.id === 'ct' && /ct|電腦斷層/i.test(normOrder)) ||
+                 (opt.id === 'ekg' && /心電圖|ekg|ecg/i.test(normOrder)) ||
+                 (opt.id === 'calcium' && /鈣|calcium/i.test(normOrder)) ||
+                 (opt.id === 'lines' && /iv|輸液|備血/i.test(normOrder)) ||
+                 (opt.id === 'bundle' && /培養|抗生素|輸液/i.test(normOrder)) ||
                  (opt.id === 'neuro' && /神經|左右|fast|nihss/i.test(normOrder));
         });
         if (matchedIndex > -1) {
@@ -1614,6 +1635,7 @@ async function boot() {
     const b = e.target.closest('button'); if (!b || held($('pcOpts'))) return;
     if (b.dataset.end === 'back') closePublicCase(); else choosePublic(Number(b.dataset.i));
   });
+  $('pcDoneBtn')?.addEventListener('click', closePublicCase);
   $('pcOrderForm')?.addEventListener('submit', e => {
     e.preventDefault();
     onDoctorOrder($('pcOrderInput')?.value || '');
@@ -1941,9 +1963,54 @@ async function boot() {
   $('gName').value = store.get(KEYS.name);
 
   const providerEl = $('gProvider'), keyEl = $('gApiKey'), modelEl = $('gModel'), levelEl = $('gLevel');
+  const modelSelectEl = $('gModelSelect'), modelCustomRow = $('gModelCustomRow');
   const customRowEl = $('gCustomRow'), customUrlEl = $('gCustomUrl');
   const verifyBtn = $('btnVerifyAi'), aiStatusEl = $('gAiStatus'), keyNoteEl = $('gKeyNote');
   let aiVerified = false;
+
+  function syncModelSelectOptions(p) {
+    if (!modelSelectEl) return;
+    const def = AI_DEFAULTS[p];
+    const list = def?.models || [];
+    modelSelectEl.innerHTML = '';
+    list.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.name;
+      modelSelectEl.appendChild(opt);
+    });
+    const customOpt = document.createElement('option');
+    customOpt.value = '_custom_';
+    customOpt.textContent = '自行手動輸入模型代號...';
+    modelSelectEl.appendChild(customOpt);
+
+    const savedModel = store.get(KEYS.model) || def?.model || '';
+    if (list.some(m => m.id === savedModel)) {
+      modelSelectEl.value = savedModel;
+      if (modelEl) modelEl.value = savedModel;
+      if (modelCustomRow) modelCustomRow.hidden = true;
+    } else if (savedModel && savedModel !== def?.model) {
+      modelSelectEl.value = '_custom_';
+      if (modelEl) modelEl.value = savedModel;
+      if (modelCustomRow) modelCustomRow.hidden = false;
+    } else {
+      modelSelectEl.value = def?.model || '';
+      if (modelEl) modelEl.value = def?.model || '';
+      if (modelCustomRow) modelCustomRow.hidden = true;
+    }
+  }
+
+  modelSelectEl?.addEventListener('change', () => {
+    aiVerified = false;
+    if (modelSelectEl.value === '_custom_') {
+      if (modelCustomRow) modelCustomRow.hidden = false;
+      modelEl?.focus();
+    } else {
+      if (modelCustomRow) modelCustomRow.hidden = true;
+      if (modelEl) modelEl.value = modelSelectEl.value;
+      store.set(KEYS.model, modelSelectEl.value);
+    }
+  });
 
   if (providerEl) {
     let savedP = store.get(KEYS.provider) || 'gemini';
@@ -1951,7 +2018,7 @@ async function boot() {
     providerEl.value = savedP;
 
     const curP = providerEl.value;
-    if (modelEl) modelEl.value = store.get(KEYS.model) || (AI_DEFAULTS[curP]?.model || '');
+    syncModelSelectOptions(curP);
     if (keyEl) keyEl.value = store.get(KEYS.key) || '';
     if (customUrlEl) customUrlEl.value = store.get(KEYS.customUrl) || '';
     if (levelEl) levelEl.value = store.get(KEYS.level) || 'pgy';
@@ -1963,8 +2030,8 @@ async function boot() {
       const p = providerEl.value;
       const def = AI_DEFAULTS[p];
       if (customRowEl) customRowEl.hidden = (p !== 'custom');
+      syncModelSelectOptions(p);
       if (def) {
-        if (modelEl) modelEl.value = def.model;
         if (keyEl) keyEl.placeholder = def.placeholder;
         if (keyNoteEl) keyNoteEl.textContent = def.hint;
       }
@@ -2178,6 +2245,7 @@ async function boot() {
     if (!S.started) return;
     if (S.mode === 'pcase') {
       if (PC.cpr && (k === 'c' || k === ' ') && !e.repeat) { e.preventDefault(); cprPress(); }
+      else if (PC.done && ['escape', 'e', 'enter', ' '].includes(k) && !e.repeat) { e.preventDefault(); closePublicCase(); }
       else if (/^[1-4]$/.test(k) && !e.repeat) { e.preventDefault(); choosePublic(Number(k) - 1); }
       return;
     }

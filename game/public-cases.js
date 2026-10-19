@@ -297,9 +297,388 @@ export const STROKE = {
   },
 };
 
+// Pocket Medicine 9th 臨床案例 1: 急性心肌梗塞 / STEMI
+export const ACS = {
+  id: 'pacs', bed: '04A', nurse: '怡君', name: '李伯伯', who: '李伯伯 · 65 歲 · 冠心病史',
+  short: '胸口劇痛、冒冷汗，輻射到下巴', late: 'arrest', extra: 'ekg',
+  results: { stable: '李伯伯即時完成心導管打通血管，病情穩住了', icu: '李伯伯已轉入心臟加護病房 (CCU) 密切觀察' },
+  labs: {
+    rows: [
+      ['Troponin I（心肌酵素）', '4.82', 'ng/mL', '<0.04', 'H'],
+      ['CK-MB（心肌同功酶）', '52', 'U/L', '0–25', 'H'],
+      ['鉀 K', '4.1', 'mmol/L', '3.5–5.1'],
+      ['血紅素 Hb', '13.6', 'g/dL', '13–18']
+    ],
+    note: 'Pocket Medicine 指引：高敏感心肌酵素顯著超標，印證急性心肌梗塞。心肌在缺血 20 分鐘後開始壞死，儘速冠狀動脈再灌流是降低死亡率與心衰竭最關鍵的處置。'
+  },
+  call: '醫師！{bed} 的李伯伯胸口壓迫性劇痛，一直冒冷汗！',
+  again: '醫師！{bed} 的李伯伯痛到臉色發灰、量不到血壓了！你快來！',
+  phone: '先給他量個血壓，讓他深呼吸，有變化再叫我',
+  callWhy: '有冠心病史突然劇烈壓迫性胸痛、冷汗，要先想到急性心肌梗塞。10 分鐘內必須做 12 導程心電圖，不能在電話中等。',
+  intro: '醫師，這是 04A 的李伯伯，65 歲，有糖尿病和冠心病。剛剛深夜突然胸口壓迫性劇痛，像大石頭壓住，痛到下巴和左肩，一直冒冷汗。',
+  introLate: '醫師你終於來了！李伯伯剛剛痛到叫不出聲，整個人癱在床上！',
+  states: {
+    start: { hr: 104, bp: [136, 82], spo2: 95, ekg: '胸痛發作中，心電圖未做', mind: '清醒，痛苦呻吟、冒冷汗' },
+    ekgDone: { hr: 98, bp: [132, 80], spo2: 95, ekg: 'V1–V4 導程 ST 段明顯抬高 (STEMI)', mind: '清醒，胸骨下持續劇痛' },
+    treated: { hr: 88, bp: [120, 74], spo2: 98, ekg: 'ST 段稍微回降，心肌再灌流中', mind: '清醒，胸痛明顯減輕' },
+    shock: { hr: 128, bp: [78, 46], spo2: 90, ekg: '廣泛性心肌缺血 ST 抬高', mind: '嗜睡、四肢冰冷、心因性休克' },
+    arrest: { hr: 0, bp: null, spo2: null, ekg: '心室顫動 (VF)', mind: '失去意識、無脈搏' },
+    rosc: { hr: 110, bp: [94, 56], spo2: 93, ekg: '恢復竇性心律，ST 段仍高', mind: '尚未完全清醒，脈搏已恢復' }
+  },
+  steps: {
+    first: {
+      ask: '李伯伯胸口劇痛、冷汗直流。你床邊第一步做什麼？',
+      askWarn: '李伯伯四肢發冷、血壓正在往下掉。你先做什麼？',
+      options: [
+        { id: 'ekg', text: '立刻做 12 導程心電圖 (EKG) 並給氧氣', grade: 'best', min: 2, state: 'ekgDone', next: 'meds',
+          say: '心電圖立刻跑出來：V1–V4 ST 段顯著抬高！怡君：「ST 段抬得好高，是前壁心肌梗塞 STEMI！」' },
+        { id: 'pain', text: '先打一支止痛針，讓他不痛再檢查', grade: 'bad', min: 10, state: 'shock',
+          say: '十分鐘後，李伯伯臉色轉灰，血壓掉到 78/46！',
+          why: '胸痛必須先做心電圖查明原因。盲目止痛會掩蓋缺血進展，且非類固醇止痛藥在心肌梗塞會增加心臟破裂風險。' },
+        { id: 'gastric', text: '先給予胃乳和制酸劑，懷疑胃食道逆流', grade: 'bad', min: 8, state: 'shock',
+          say: '喝了胃乳毫無起色，李伯伯開始喘、四肢發冷！',
+          why: '年長冠心病患下巴、胸口壓痛合併冒冷汗是典型心肌梗塞表現，不能先當胃食道逆流。' }
+      ]
+    },
+    meds: {
+      ask: '心電圖確診前壁 STEMI！李伯伯血壓 132/80，接下來最關鍵的處置？',
+      options: [
+        { id: 'stemi', text: '嚼服阿斯匹靈 300mg、舌下含 NTG，同時啟動心導管室 (Code STEMI)', grade: 'best', min: 5, state: 'treated', next: 'after',
+          say: '李伯伯嚼服阿斯匹靈並含了 NTG，胸痛稍微緩解。心導管室值班醫師電話那頭說：「我們立即就位，馬上推過來做 PCI！」' },
+        { id: 'waitlab', text: '等抽血心肌酵素報告出來，再決定要不要通報心導管', grade: 'bad', min: 30, state: 'shock',
+          say: '等了一小時報告出來，李伯伯已經陷入心因性休克！',
+          why: 'Pocket Medicine 指引：STEMI 不需要等心肌酵素報告才治療！心電圖有 ST 抬高即達再灌流適應症，每延誤 30 分鐘死亡率顯著上升。' },
+        { id: 'ntgonly', text: '只給予舌下含服 NTG，不給抗血小板藥物', grade: 'ok', min: 5,
+          say: '含了 NTG 胸痛好轉一點，但心導管小組尚未通報。',
+          why: 'NTG 只能擴張血管暫時減輕疼痛，抗血小板藥物 (Aspirin) 與緊急再灌流導管手術才是拯救壞死心肌的核心。' }
+      ]
+    },
+    after: {
+      ask: '心導管團隊已就位，李伯伯胸痛減輕。接下來安排？',
+      options: [
+        { id: 'ccu', text: '推入手術室實施心導管氣球擴張與支架置放，術後入 CCU', grade: 'best', min: 15, next: 'done', outcome: 'stable',
+          say: '導管室順利打通李伯伯左前降支 (LAD) 血管，李伯伯說：「胸口大石頭終於搬開了……」' },
+        { id: 'stay', text: '留在普通病房，明天早上門診再安排檢查', grade: 'bad', min: 20, next: 'arrest',
+          say: '心肌持續大面積缺血，突發致死性心室顫動 (VF)！',
+          why: 'STEMI 必須於黃金 90 分鐘內導管打通血管，絕不可留在一般病房觀察。' }
+      ]
+    },
+    arrest: {
+      ask: '李伯伯突發心室顫動 (VF) 失去意識！你要？',
+      options: [
+        { id: 'cpr', text: '立刻廣播急救、推去顫器 (AED) 電擊並開始 CPR 壓胸', grade: 'best', min: 0, cpr: true },
+        { id: 'intubate', text: '先準備插管管路', grade: 'bad', min: 2,
+          death: '心室顫動時心臟沒有射血，最關鍵是立刻壓胸與去顫電擊！每延遲一分鐘去顫，存活率下降 10%。' }
+      ]
+    },
+    rosc: {
+      ask: '電擊與壓胸後心跳恢復，李伯伯脈搏摸得到了。接下來？',
+      options: [
+        { id: 'icu', text: '直接由急救小組護送緊急推進心導管室打通血管並入加護病房', grade: 'best', min: 20, next: 'done', outcome: 'icu',
+          say: '導管室順利打通完全塞住的血管，李伯伯轉入 CCU 密切使用主動脈氣球幫浦支持。' }
+      ]
+    }
+  },
+  warn: { state: 'shock', line: '怡君：「醫師！李伯伯血壓一直掉，整個人四肢發冰！」', log: '李伯伯出現心因性休克跡象' },
+  arrestLine: '怡君：「醫師！李伯伯心電圖變成 VF，摸不到脈搏了！」',
+  cprNext: 'rosc', cprState: 'rosc',
+  cprLine: '去顫電擊一次並壓胸兩分鐘後，心律轉回竇性心律。「醫師！脈搏摸到了！」',
+  card: {
+    title: '急性心肌梗塞 (ACS / STEMI)：Pocket Medicine 值班關鍵',
+    points: [
+      '胸骨下壓迫感、輻射至下巴或左臂、合併冷汗是高危警訊，到床邊 10 分鐘內必須完成 12 導程心電圖 (EKG)。',
+      '心電圖見相鄰導程 ST 段抬高 (STEMI)，不需等抽血報告，應立即嚼服 Aspirin (160–325mg) 並立刻啟動心導管室 (Code STEMI)。',
+      '血壓若偏低 (<90 mmHg) 或懷疑右心室梗塞，嚴禁使用硝化甘油 (NTG)，以免血壓休克。',
+      '突發心因性心跳驟停多為心室顫動 (VF)，第一要務為立即高品質 CPR 壓胸並儘速去顫電擊。'
+    ]
+  }
+};
+
+// Pocket Medicine 9th 臨床案例 2: 致命性高血鉀
+export const HYPERK = {
+  id: 'phyperk', bed: '06A', nurse: '小雯', name: '洪阿伯', who: '洪阿伯 · 71 歲 · 尿毒症透析病患',
+  short: '血鉀 7.2，心律監視器 QRS 變寬', late: 'arrest', extra: 'rhythm',
+  results: { stable: '洪阿伯及時穩定心肌細胞膜與降鉀，順利進行透析', icu: '洪阿伯已轉入加護病房進行緊急血液透析' },
+  labs: {
+    rows: [
+      ['血鉀 Potassium', '7.2', 'mmol/L', '3.5–5.1', 'H'],
+      ['肌酸酐 Creatinine', '7.8', 'mg/dL', '0.7–1.3', 'H'],
+      ['尿素氮 BUN', '82', 'mg/dL', '7–20', 'H'],
+      ['酸鹼度 pH（血液氣體）', '7.21', '', '7.35–7.45', 'L']
+    ],
+    note: 'Pocket Medicine 降鉀三部曲：1. 穩定細胞膜 (Calcium gluconate，EKG有變化時第一優先)；2. 驅鉀入細胞 (Regular Insulin 10U + D50W，配合 Nebulized Albuterol)；3. 排鉀出體外 (透析 Hemodialysis 最有效)。'
+  },
+  call: '醫師！檢驗科急報 {bed} 洪阿伯血鉀 7.2，監視器上波形看起來怪怪的！',
+  again: '醫師！{bed} 的洪阿伯心律越來越寬，量不到血壓了！快來！',
+  phone: '請檢驗科重驗一次看看，先不要打點滴，有變化再叫我',
+  callWhy: '血鉀 > 6.5 或心電圖出現高尖 T 波、寬 QRS 是極度致命急症，隨時會心室顫動。必須立即到床邊給予鈣劑穩定細胞膜，不能等重驗。',
+  intro: '醫師，這是 06A 洪阿伯，有末期腎病規律洗腎。檢驗科剛剛打電話急報血鉀 7.2 mmol/L！心律監視器上 T 波變得很高尖，QRS 也變寬了！',
+  introLate: '醫師你終於來了！阿伯的心律監視器整個變成正弦波 (Sine wave)，叫他不太回應！',
+  states: {
+    start: { hr: 82, bp: [142, 88], spo2: 96, rhythm: 'T波高尖 (Peaked T)、QRS變寬', mind: '清醒，四肢麻木無力' },
+    caGiven: { hr: 80, bp: [138, 84], spo2: 96, rhythm: 'QRS 寬度縮短，波形穩定中', mind: '清醒，四肢仍無力' },
+    shifted: { hr: 76, bp: [130, 80], spo2: 97, rhythm: '竇性心律，T 波明顯回降', mind: '清醒，力氣稍微恢復' },
+    sine: { hr: 114, bp: [82, 48], spo2: 90, rhythm: '正弦波形 (Sine wave) 極度危急', mind: '嗜睡、脈搏微弱' },
+    arrest: { hr: 0, bp: null, spo2: null, rhythm: '無脈搏心室心搏過速 (pVT)', mind: '叫不醒、無呼吸脈搏' },
+    rosc: { hr: 90, bp: [100, 62], spo2: 94, rhythm: '已穩定化竇性心律', mind: '意識漸醒，脈搏恢復' }
+  },
+  steps: {
+    first: {
+      ask: '血鉀 7.2 伴隨心電圖寬 QRS。床邊最最優先的第一劑藥物是什麼？',
+      askWarn: '心電圖已變形為正弦波，阿伯意識漸漸模糊。你先給什麼？',
+      options: [
+        { id: 'calcium', text: '靜脈慢推葡萄糖酸鈣 (Calcium gluconate) 1 支 (10mL)', grade: 'best', min: 2, state: 'caGiven', next: 'shift',
+          say: '葡萄糖酸鈣推進去兩分鐘，監視器上 QRS 寬度立刻明顯收窄！小雯：「波形變漂亮了！太神奇了。」' },
+        { id: 'insulinonly', text: '只給短效胰島素 (RI) 10 單位皮下注射', grade: 'bad', min: 15, state: 'sine',
+          say: '皮下吸收太慢，波形惡化成瀕臨停止的正弦波！',
+          why: 'Pocket Medicine 首要原則：心電圖異常時，第一步是 IV 給鈣劑穩定細胞膜（2-3分鐘見效），且胰島素必須靜脈給予並配合高濃度糖水。' },
+        { id: 'water', text: '大量灌開水，希望多尿尿排鉀', grade: 'bad', min: 10, state: 'sine',
+          say: '阿伯根本沒有尿，水分堆積造成肺水腫，心律更差了！',
+          why: '洗腎病患無尿，大量喝水只會引發致命肺水腫。' }
+      ]
+    },
+    shift: {
+      ask: '細胞膜已穩定。接下來如何迅速把血液中的鉀離子移入細胞內？',
+      options: [
+        { id: 'ri_d50', text: '給予靜脈短效胰島素 (RI) 10U + D50W 葡萄糖 2 支，並吸入 Albuterol', grade: 'best', min: 5, state: 'shifted', next: 'elim',
+          say: '小雯將 RI 與高濃度葡萄糖推進去，並接上吸入劑。半小時後床邊氣血分析血鉀降至 5.6！' },
+        { id: 'waitdial', text: '什麼藥都不用給，乾等明天早上洗腎室開門', grade: 'bad', min: 30, state: 'sine',
+          say: '鈣劑的保護只有半小時，藥效過了之後心律再次崩潰！',
+          why: '鈣劑不降低血鉀數值，只保護心臟 30-60 分鐘。必須緊接著給予促使鉀離子內流與排出的藥物。' }
+      ]
+    },
+    elim: {
+      ask: '血鉀暫時內流，但體內總鉀量仍高。根本排除體內的最終處置是？',
+      options: [
+        { id: 'hd', text: '聯絡腎臟科值班醫師與透析室，安排緊急血液透析 (HD)', grade: 'best', min: 15, next: 'done', outcome: 'stable',
+          say: '透析室護理師與腎臟科醫師立刻備機，阿伯順利上機洗腎，血鉀降至 4.2 安全範圍。' },
+        { id: 'furo', text: '給予大劑量利尿劑 (Lasix) 讓他自己排', grade: 'ok', min: 10,
+          say: '小雯：「醫師，阿伯平常就完全沒尿了，利尿劑可能沒什麼用……」',
+          why: '末期無尿腎病患無法靠利尿劑排鉀，緊急透析才是唯一可靠的體外排除手段。' }
+      ]
+    },
+    arrest: {
+      ask: '阿伯突發心律崩潰，無脈搏心搏過速！你要？',
+      options: [
+        { id: 'cpr', text: '啟動急救、立刻去顫電擊並開始 CPR 壓胸，加打高劑量 Calcium', grade: 'best', min: 0, cpr: true },
+        { id: 'checkk', text: '再去抽一管血確認血鉀到底多少', grade: 'bad', min: 2,
+          death: '心跳驟停時分秒必爭，抽血無法挽救生命，必須立即壓胸與電擊去顫！' }
+      ]
+    },
+    rosc: {
+      ask: '電擊並持續壓胸後，阿伯心跳恢復。接下來？',
+      options: [
+        { id: 'icu', text: '轉入加護病房，於床邊緊急設置股靜脈雙腔導管進行連續血液透析', grade: 'best', min: 20, next: 'done', outcome: 'icu',
+          say: '加護病房團隊立即接手，順利將阿伯體內多餘血鉀洗出。' }
+      ]
+    }
+  },
+  warn: { state: 'sine', line: '小雯：「醫師！阿伯心律變成正弦波了！血壓掉到 80！」', log: '洪阿伯出現正弦波致命心律' },
+  arrestLine: '小雯：「醫師！摸不到脈搏了！心室頻脈！」',
+  cprNext: 'rosc', cprState: 'rosc',
+  cprLine: '持續壓胸並再給予一劑氯化鈣與去顫後，「醫師，心跳回來了！QRS 收窄了！」',
+  card: {
+    title: '致命性高血鉀：Pocket Medicine 值班關鍵原則',
+    points: [
+      '心電圖變化比血鉀絕對數值更危急：T 波高尖、PR 延長、QRS 增寬，乃至正弦波 (Sine wave) 隨時心跳停止。',
+      '心電圖異常第一步：IV Calcium gluconate 10mL 慢推，2-3 分鐘迅速穩定心肌膜電位（注意：鈣劑不降血鉀數值！）。',
+      '移鉀入細胞：IV Regular Insulin 10U + D50W 50-100mL（預防低血糖），加上吸入 Albuterol 10-20mg。',
+      '無尿腎病患無法靠利尿劑排鉀，必須果斷聯繫緊急血液透析 (Urgent Hemodialysis)。'
+    ]
+  }
+};
+
+// Pocket Medicine 9th 臨床案例 3: 急性上消化道大出血
+export const GIB = {
+  id: 'pgib', bed: '07A', nurse: '佳穎', name: '吳先生', who: '吳先生 · 54 歲 · 肝硬化病史',
+  short: '大量吐鮮血、解黑便，血壓掉到 80', late: 'arrest', extra: 'stool',
+  results: { stable: '吳先生輸血與止血藥物及時生效，順利完成內視鏡止血', icu: '吳先生已送入加護病房插管保護氣道並急做止血術' },
+  labs: {
+    rows: [
+      ['血紅素 Hb', '6.2', 'g/dL', '13.0–18.0', 'L'],
+      ['血小板 Platelet', '62', '×10³/µL', '150–400', 'L'],
+      ['凝血時間 INR', '1.82', '', '0.8–1.2', 'H'],
+      ['白蛋白 Albumin', '2.3', 'g/dL', '3.5–5.5', 'L']
+    ],
+    note: 'Pocket Medicine：急性大出血初期 Hb 可能尚未真實反映失血量。輸血目標為維持 Hb 在 7–8 g/dL（限制性輸血策略，避免門脈壓力反彈）。肝硬化破裂出血必須併用 Octreotide 與預防性抗生素。'
+  },
+  call: '醫師！{bed} 的吳先生剛剛吐了好大一碗鮮血，還解了大量瀝青黑便，血壓 80/46！',
+  again: '醫師！{bed} 的吳先生又吐了 500cc 鮮血，叫他都快沒反應了！快來！',
+  phone: '先給他吃胃乳，把頭墊高，有變化再叫我',
+  callWhy: '肝硬化吐鮮血合併休克血壓，高機率為食道靜脈曲張破裂大出血。必須立即到床邊建立大口徑靜脈管路輸液輸血，電話拖延會失血性休克致死。',
+  intro: '醫師，這是 07A 的吳先生，有 B 肝肝硬化。剛剛連續吐出大量鮮紅血液與血塊，床底下便盆全是瀝青樣黑便！血壓掉到 80/46，脈搏 128！',
+  introLate: '醫師你來了！病人吐到滿身滿床都是血，現在臉色慘白叫不太醒！',
+  states: {
+    start: { hr: 128, bp: [80, 46], spo2: 94, stool: '大量瀝青黑便伴鮮血塊', mind: '意識躁動、冒冷汗、四肢冰冷' },
+    ivPlaced: { hr: 112, bp: [92, 56], spo2: 95, stool: '黑便持續', mind: '意識稍微清醒' },
+    stabilized: { hr: 90, bp: [108, 66], spo2: 97, stool: '黑便量減少', mind: '清醒，休克症狀緩解' },
+    bleeding: { hr: 142, bp: [66, 38], spo2: 88, stool: '持續大量湧出鮮血', mind: '嗜睡、意識不清' },
+    arrest: { hr: 0, bp: null, spo2: null, stool: '出血性休克停止呼吸', mind: '無反應、脈搏停止' },
+    rosc: { hr: 118, bp: [88, 52], spo2: 92, stool: '暫時壓制出血', mind: '未清醒，微弱動脈搏動' }
+  },
+  steps: {
+    first: {
+      ask: '吳先生大量吐血、低血壓休克。床邊第一要務是什麼？',
+      askWarn: '吳先生臉色慘白，血壓量不到。第一步該做什麼？',
+      options: [
+        { id: 'lines', text: '建立兩條大口徑靜脈管路 (16–18G)、快速輸生理食鹽水並備紅血球 (PRBC)', grade: 'best', min: 3, state: 'ivPlaced', next: 'meds',
+          say: '佳穎迅速打上兩支大口徑 18G IV，生理食鹽水全速灌注，血壓回升至 92/56！' },
+        { id: 'ng', text: '馬上插鼻胃管用力灌冰水洗胃', grade: 'bad', min: 10, state: 'bleeding',
+          say: '插管刺激造成靜脈曲張更大撕裂，大量血水噴出！',
+          why: 'Pocket Medicine 指引：休克時第一優先是循環復甦 (ABC)。冰水洗胃無助止血，盲目插管反而可能刮破血管加劇出血。' },
+        { id: 'oralmed', text: '給予口服止血粉，請他慢慢喝下去', grade: 'bad', min: 5, state: 'bleeding',
+          say: '吞下去立刻引發劇烈嘔吐，血壓進一步暴跌！',
+          why: '活動性吐血患者嚴禁口服給藥，會引發嘔吐甚至窒息。' }
+      ]
+    },
+    meds: {
+      ask: '輸液進行中，吳先生有肝硬化病史。接下來給予哪組關鍵藥物？',
+      options: [
+        { id: 'octreotide', text: '靜脈注射 Octreotide (降低門脈高壓)、高劑量 PPI，並給予 Ceftriaxone', grade: 'best', min: 5, state: 'stabilized', next: 'scope',
+          say: 'Octreotide 與 PPI 注射後，嘔血明顯減緩！小雯也給上了預防性抗生素 Ceftriaxone。' },
+        { id: 'ppionly', text: '只給一般劑量口服胃藥', grade: 'bad', min: 15, state: 'bleeding',
+          say: '門脈高壓未降，血管持續湧出鮮血！',
+          why: 'Pocket Medicine：肝硬化靜脈曲張破裂，必須使用血管加壓素/Octreotide 降低門脈壓力，且預防性抗生素 (Ceftriaxone) 可顯著降低再出血率與死亡率。' }
+      ]
+    },
+    scope: {
+      ask: '生命徵象暫時穩定，輸血進行中。接下來的確定性處置是？',
+      options: [
+        { id: 'egd', text: '緊急聯繫消化內科醫師，安排急診胃鏡 (EGD) 進行曲張靜脈結紮術 (EVL)', grade: 'best', min: 15, next: 'done', outcome: 'stable',
+          say: '腸胃科醫師火速趕到，胃鏡下順利以橡皮圈將出血的靜脈曲張結紮 (EVL)！吳先生轉入加護病房觀察。' },
+        { id: 'waitday', text: '等明天早上上班時間再排胃鏡', grade: 'bad', min: 30, next: 'arrest',
+          say: '後半夜再次噴血，失血性休克心跳停止！',
+          why: '大量活動性消化道出血經藥物穩定後，應於 12–24 小時內（休克穩定後儘速）完成內視鏡止血。' }
+      ]
+    },
+    arrest: {
+      ask: '吳先生大量失血休克心跳停止！你要？',
+      options: [
+        { id: 'cpr', text: '立刻廣播急救、加壓輸血並開始高品質壓胸 CPR', grade: 'best', min: 0, cpr: true },
+        { id: 'suction', text: '只做抽痰清嘴巴', grade: 'bad', min: 2,
+          death: '心跳停止時第一順位是胸部按壓與大容量輸血搶救循環！' }
+      ]
+    },
+    rosc: {
+      ask: '加壓輸血與壓胸後心跳恢復，接下來？',
+      options: [
+        { id: 'icu', text: '轉入加護病房，氣管內管保護呼吸道後床邊緊急內視鏡止血', grade: 'best', min: 20, next: 'done', outcome: 'icu',
+          say: '重症團隊迅速插管保護呼吸道，胃鏡成功結紮出血點。' }
+      ]
+    }
+  },
+  warn: { state: 'bleeding', line: '佳穎：「醫師！吳先生又大口吐血了！血壓量不到了！」', log: '吳先生再次爆發大量嘔血' },
+  arrestLine: '佳穎：「醫師！病人摸不到脈搏了！心跳停了！」',
+  cprNext: 'rosc', cprState: 'rosc',
+  cprLine: '兩袋紅血球快速加壓灌入，持續壓胸兩分鐘後：「醫師！頸動脈摸得到搏動了！」',
+  card: {
+    title: '急性消化道大出血 (UGIB)：Pocket Medicine 值班關鍵',
+    points: [
+      '生命徵象第一 (Resuscitation First)：立即放置兩條 16–18G 大口徑 IV，快速輸液並緊急備紅血球 (PRBC)。',
+      '肝硬化疑似靜脈曲張破裂：立即給予 Octreotide (50mcg bolus, 50mcg/hr) 降低門脈高壓，並靜脈注射高劑量 PPI。',
+      '預防性抗生素 (Ceftriaxone 1g/d)：在肝硬化大出血病患可顯著降低自發性細菌性腹膜炎 (SBP) 與敗血症死亡率。',
+      '限制性輸血策略 (Restrictive transfusion)：目標 Hb 7–8 g/dL 即可，過度輸血會導致門脈壓力升高引發再次出血。'
+    ]
+  }
+};
+
+// Pocket Medicine 9th 臨床案例 4: 嚴重敗血性休克
+export const SEPSIS = {
+  id: 'psepsis', bed: '11B', nurse: '佳穎', name: '林奶奶', who: '林奶奶 · 83 歲 · 泌尿道感染住院',
+  short: '高燒 39.5 度、寒顫，血壓 74/42', late: 'arrest', extra: 'temp',
+  results: { stable: '林奶奶落實敗血症一小時組合處置，血壓回升尿量產出', icu: '林奶奶已穩定轉入加護病房接受升壓劑與器官支持' },
+  labs: {
+    rows: [
+      ['白血球 WBC', '21.8', '×10³/µL', '4.0–11.0', 'H'],
+      ['未成熟嗜中性球 Band', '18', '%', '0–5', 'H'],
+      ['乳酸 Lactate', '4.6', 'mmol/L', '0.5–2.2', 'H'],
+      ['肌酸酐 Creatinine', '2.2', 'mg/dL', '0.5–1.1', 'H']
+    ],
+    note: 'Pocket Medicine Sepsis 1-Hour Bundle：1. 抽兩套血液培養（給抗生素前）；2. 一小時內給予廣效靜脈抗生素；3. 30 mL/kg 晶體輸液；4. MAP < 65 立即使用 Norepinephrine；5. 追蹤 Lactate 評估組織灌流。'
+  },
+  call: '醫師！{bed} 的林奶奶突發高燒 39.5 度狂發抖，量血壓只有 74/42！',
+  again: '醫師！{bed} 的林奶奶神智不清了，四肢發紺摸不到脈搏！快來！',
+  phone: '先給一顆退燒藥，多蓋兩條被子，有變化再叫我',
+  callWhy: '高燒合併嚴重視覺低血壓 (MAP < 65) 是敗血性休克！每延誤一小時給抗生素，死亡率上升 7.6%，絕不能只給退燒藥。',
+  intro: '醫師，這是 11B 的林奶奶，因泌尿道感染住院打抗生素。剛剛突發高燒 39.5°C，全身發抖，血壓驟降到 74/42，心跳 136，人叫不太醒！',
+  introLate: '醫師你來了！阿嬤四肢全都是紫斑，血壓量不到了，叫都沒反應！',
+  states: {
+    start: { hr: 136, bp: [74, 42], spo2: 92, temp: 39.5, mind: '嗜睡、意識混亂、四肢冰冷' },
+    bundle1: { hr: 120, bp: [86, 50], spo2: 94, temp: 39.1, mind: '可被叫醒但虛弱' },
+    stable: { hr: 96, bp: [106, 64], spo2: 96, temp: 38.2, mind: '清醒，會配合回答' },
+    shock: { hr: 148, bp: [62, 34], spo2: 86, temp: 39.8, mind: '昏迷、周邊發紺、無尿' },
+    arrest: { hr: 0, bp: null, spo2: null, temp: 39.8, mind: '呼吸心跳停止' },
+    rosc: { hr: 122, bp: [88, 50], spo2: 93, temp: 38.6, mind: '重度昏睡，動脈搏動恢復' }
+  },
+  steps: {
+    first: {
+      ask: '林奶奶高燒、低血壓休克 (MAP < 65)。依照 Pocket Medicine Sepsis 1-Hour Bundle，第一步？',
+      askWarn: '阿嬤發紺發涼、血壓量不到。第一步該做什麼？',
+      options: [
+        { id: 'bundle', text: '立刻抽兩套血液培養 (Blood CS x 2)、給予 30 mL/kg 快速靜脈輸液，並抽乳酸 (Lactate)', grade: 'best', min: 3, state: 'bundle1', next: 'abx',
+          say: '佳穎迅速抽出兩套血培養，開啟全速輸液，並送急件乳酸檢查！' },
+        { id: 'antipyretic', text: '先塞一顆退燒塞劑，等體溫退了血壓就會回來', grade: 'bad', min: 15, state: 'shock',
+          say: '體溫退了一點，但感染源引發的血管擴張性休克急速惡化，血壓崩至 62/34！',
+          why: '敗血性休克的低血壓是全身性發炎血管癱瘓與微循環障礙，退燒藥完全無法改善器官灌流。' },
+        { id: 'waiturine', text: '先等她上一泡尿出來看顏色再說', grade: 'bad', min: 20, state: 'shock',
+          say: '腎臟灌流不足早已無尿，拖延造成不可逆多器官衰竭！',
+          why: '無尿是休克的器官低灌流徵兆，必須立即輸液復甦與升壓支持。' }
+      ]
+    },
+    abx: {
+      ask: '血培養已抽完、輸液進行中。接下來抗生素與升壓劑的處置？',
+      options: [
+        { id: 'abx_vaso', text: '1小時內給予廣效靜脈抗生素 (Pip-Tazo/Cefepime)，若輸液後 MAP 仍低於 65 立即上 Norepinephrine', grade: 'best', min: 5, state: 'stable', next: 'after',
+          say: '抗生素迅速注射完畢，升壓劑 Norepinephrine 上線後，血壓穩固回升至 106/64！林奶奶眼睛慢慢張開。' },
+        { id: 'waitcs', text: '等兩天後培養長出細菌，再決定打哪一種抗生素', grade: 'bad', min: 30, state: 'shock',
+          say: '沒有抗生素壓制，菌血症演變成頑固性多器官衰竭！',
+          why: 'Pocket Medicine 敗血症黃金法則：給予廣效抗生素每延誤一小時，敗血性休克死亡率增加約 7.6%！絕不能等培養報告。' }
+      ]
+    },
+    after: {
+      ask: '林奶奶血壓回升、意識恢復清醒。接下來的照護處置？',
+      options: [
+        { id: 'icu', text: '轉入加護病房，持續監控每小時尿量、動脈血壓與乳酸清除率', grade: 'best', min: 15, next: 'done', outcome: 'stable',
+          say: '加護病房團隊推床接手，林奶奶尿量恢復至每小時 40mL，乳酸由 4.6 降至 2.1。' },
+        { id: 'general', text: '留在普通病房，請護理師四小時量一次血壓', grade: 'ok', min: 10,
+          say: '佳穎：「醫師，阿伯的 Norepinephrine 升壓劑還在打，普通病房沒有自動動脈血壓監視，很危險……」',
+          why: '使用升壓劑的敗血性休克患者必須在加護病房或重症照護單位嚴密監控。' }
+      ]
+    },
+    arrest: {
+      ask: '林奶奶休克惡化心跳停止！你要？',
+      options: [
+        { id: 'cpr', text: '立刻廣播急救、開始胸部按壓 CPR 並推高流量氧氣', grade: 'best', min: 0, cpr: true },
+        { id: 'wait', text: '再調高升壓劑速度看心跳會不會回來', grade: 'bad', min: 2,
+          death: '心跳停止時升壓藥物無法在體內循環，必須立刻壓胸提供人工循環！' }
+      ]
+    },
+    rosc: {
+      ask: '壓胸急救後心跳恢復，接下來？',
+      options: [
+        { id: 'icu', text: '緊急插管保護呼吸道，轉入加護病房全力抗休克治療', grade: 'best', min: 20, next: 'done', outcome: 'icu',
+          say: '加護病房團隊立即接管，進行重症器官灌流支持。' }
+      ]
+    }
+  },
+  warn: { state: 'shock', line: '佳穎：「醫師！林奶奶血壓掉到 62！四肢摸起來好冰！」', log: '林奶奶陷入難治性敗血性休克' },
+  arrestLine: '佳穎：「醫師！林奶奶沒有心跳了！摸不到脈搏！」',
+  cprNext: 'rosc', cprState: 'rosc',
+  cprLine: '持續壓胸兩分鐘，給予靜脈腎上腺素後：「醫師！摸得到脈搏了！」',
+  card: {
+    title: '敗血性休克 (Septic Shock)：Pocket Medicine 1-Hour Bundle',
+    points: [
+      '發燒伴隨低血壓 (MAP < 65) 或意識改變即為重症急急症，切勿當作單純發燒只給退燒藥。',
+      '抽血培養必須在給抗生素前完成，但絕不能為了等培養而延遲抗生素超過 1 小時（每延遲一小時死亡率上升 7.6%）。',
+      '輸液復甦：首劑給予 30 mL/kg 晶體溶液 (Crystalloids)。若輸液後血壓未回升，首選升壓劑為 Norepinephrine。',
+      '乳酸 (Lactate) > 2 mmol/L 代表組織缺氧灌流不足，必須每 2–4 小時複查確認乳酸下降（乳酸清除率 Lactate clearance）。'
+    ]
+  }
+};
+
 // the beds a night draws from (普通班 four to six a night, 大爛班 six to eight, never more than are
 // listed here); `night: true` marks a bed whose call says 半夜, which game.js only rings after 23:30
-export const PUBLIC_CASES = [HYPO, STROKE];
+export const PUBLIC_CASES = [HYPO, STROKE, ACS, HYPERK, GIB, SEPSIS];
 
 // CPR: chest compressions to a beat. 30 compressions at 100–120 a minute, judged on exactly the
 // range the screen gives; the rate is the median of the presses after the first two, so a
